@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Make a Brainrot Full Combo Ancestry Tree</title>
+<title>Make a Brainrot Combos: Pets, Combos, Combos-of-Combos</title>
 <style>
   body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -27,7 +27,7 @@
     color: #ff33aa;
   }
   .container {
-    max-width: 700px;
+    max-width: 800px;
     margin: auto;
     background: #1b1b1b;
     padding: 20px;
@@ -46,6 +46,8 @@
   ul {
     list-style-type: none;
     padding-left: 20px;
+    max-height: 400px;
+    overflow-y: auto;
   }
   li {
     margin: 6px 0;
@@ -61,117 +63,103 @@
     font-size: 0.9em;
     color: #777;
   }
+  .parents-list {
+    margin-top: 8px;
+  }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>Make a Brainrot Full Combo Ancestry Tree</h1>
+  <h1>Make a Brainrot Combos Explorer</h1>
   <div class="breadcrumb"></div>
-  <div id="pet-tree-container"></div>
+  <div id="pet-details"></div>
+  <h3>All Pets & Combos (click to explore ancestry):</h3>
+  <ul id="pet-list"></ul>
 </div>
 <div class="footer">
-  Click any pet/combo to jump there.<br />
-  The full combo ancestry tree is expanded recursively.<br />
-  Use breadcrumb for navigation.<br />
-  Originals have no parents.
+  Level 1 combos: All pairs of base pets.<br/>
+  Level 2 combos: All pairs from (base pets + level 1 combos).<br/>
+  No combos beyond level 2.<br/>
+  Click an item to see its parents.<br/>
+  Breadcrumb navigation included.
 </div>
 
 <script>
-// Data with parents and emoji
-const comboData = {
-  // Originals
-  "🦈 Tralalero Tralala": { emoji: "🦈", parents: [] },
-  "🐊 Bombardiro Crocodilo": { emoji: "🐊", parents: [] },
-  "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur": { emoji: "🥁", parents: [] },
-  "🌵 Lirilì Larilà": { emoji: "🌵", parents: [] },
-  "🐸 Boneca Ambalabu": { emoji: "🐸", parents: [] },
-  "🌳 Brr Brr Patapim": { emoji: "🌳", parents: [] },
-  "🍌 Chimpanzini Bananini": { emoji: "🍌", parents: [] },
-  "✈️ Bombombini Gusini": { emoji: "✈️", parents: [] },
-  "☕ Capuccino Assassino": { emoji: "☕", parents: [] },
-  "🐻 Trippi Troppi": { emoji: "🐻", parents: [] },
-  "🐪 Frigo Camelo": { emoji: "🐪", parents: [] },
-  "🪐 La Vaca Saturno Saturnita": { emoji: "🪐", parents: [] },
-  "💃 Ballerina Cappucina": { emoji: "💃", parents: [] },
-  "🍊 U Din Din Din Din Dun Ma Din Din Din Dun": { emoji: "🍊", parents: [] },
-  "✨ Frulli Frulla": { emoji: "✨", parents: [] },
-  "🚽 Skibidi Toilet": { emoji: "🚽", parents: [] },
+// Base pets list (your given list)
+const basePets = [
+  { name: "Tralalero Tralala", emoji: "🦈" },
+  { name: "Bombardiro Crocodilo", emoji: "🐊" },
+  { name: "Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur", emoji: "🥁" },
+  { name: "Lirilì Larilà", emoji: "🌵" },
+  { name: "Boneca Ambalabu", emoji: "🐸" },
+  { name: "Brr Brr Patapim", emoji: "🌳" },
+  { name: "Chimpanzini Bananini", emoji: "🍌" },
+  { name: "Bombombini Gusini", emoji: "✈️" },
+  { name: "Capuccino Assassino", emoji: "☕" },
+  { name: "Trippi Troppi", emoji: "🐻" },
+  { name: "Frigo Camelo", emoji: "🐪" },
+  { name: "La Vaca Saturno Saturnita", emoji: "🪐" },
+  { name: "Ballerina Cappucina", emoji: "💃" },
+  { name: "U Din Din Din Din Dun Ma Din Din Din Dun", emoji: "🍊" },
+  { name: "Frulli Frulla", emoji: "✨" },
+  { name: "Skibidi Toilet", emoji: "🚽" }
+];
 
-  // Combos
-  "🦈 Tralalero Bombombini": { emoji: "🦈", parents: ["🦈 Tralalero Tralala", "✈️ Bombombini Gusini"] },
-  "🦈 Tralala Cappucina": { emoji: "🦈", parents: ["🦈 Tralalero Tralala", "☕ Capuccino Assassino"] },
-  "🦈 Trippi Tralala": { emoji: "🦈", parents: ["🦈 Tralalero Tralala", "🐻 Trippi Troppi"] },
+// We'll store all combos/pets here keyed by unique name
+// Format: { name, emoji, parents: [] or [parent1, parent2], level: 0|1|2 }
+const allEntries = {};
 
-  "🐪 Crocodilo Camelo": { emoji: "🐪", parents: ["🐊 Bombardiro Crocodilo", "🐪 Frigo Camelo"] },
-  "🐊 Bombardiro Patapim": { emoji: "🐊", parents: ["🐊 Bombardiro Crocodilo", "🌳 Brr Brr Patapim"] },
-  "✨ Frulla Crocodiro": { emoji: "✨", parents: ["🐊 Bombardiro Crocodilo", "✨ Frulli Frulla"] },
+// Add base pets (level 0)
+for (const pet of basePets) {
+  allEntries[pet.name] = { ...pet, parents: [], level: 0 };
+}
 
-  "🥁 Tung Sahur Bananini": { emoji: "🥁", parents: ["🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur", "🍌 Chimpanzini Bananini"] },
-  "🚽 Tung Skibidi Bomb": { emoji: "🚽", parents: ["🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur", "🚽 Skibidi Toilet"] },
-  "🥁 Tung Trippi Larilà": { emoji: "🥁", parents: ["🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur", "🐻 Trippi Troppi"] },
+// Helper: create a unique sorted combo key to avoid duplicates
+function comboKey(a, b) {
+  return [a, b].sort().join(" + ");
+}
 
-  "🌵 Larilà Saturnita": { emoji: "🌵", parents: ["🌵 Lirilì Larilà", "🪐 La Vaca Saturno Saturnita"] },
-  "🌵 Lirilì Ambalabu": { emoji: "🌵", parents: ["🌵 Lirilì Larilà", "🐸 Boneca Ambalabu"] },
-  "🌵 Lirilì Cappucino": { emoji: "🌵", parents: ["🌵 Lirilì Larilà", "☕ Capuccino Assassino"] },
+// Create combos from two entries
+function makeCombo(aEntry, bEntry, level) {
+  const key = comboKey(aEntry.name, bEntry.name);
+  if (allEntries[key]) return null; // already exists
 
-  "🐸 Ambalabu Trippi": { emoji: "🐸", parents: ["🐸 Boneca Ambalabu", "🐻 Trippi Troppi"] },
-  "🐸 Boneca Ballerina": { emoji: "🐸", parents: ["🐸 Boneca Ambalabu", "💃 Ballerina Cappucina"] },
-  "🐸 Ambalabu Frulla": { emoji: "🐸", parents: ["🐸 Boneca Ambalabu", "✨ Frulli Frulla"] },
+  return {
+    name: key,
+    emoji: aEntry.emoji + "➕" + bEntry.emoji,
+    parents: [aEntry.name, bEntry.name],
+    level,
+  };
+}
 
-  "🐪 Patapim Camelo": { emoji: "🐪", parents: ["🌳 Brr Brr Patapim", "🐪 Frigo Camelo"] },
-  "🌳 Brr Brr Gusini": { emoji: "🌳", parents: ["🌳 Brr Brr Patapim", "✈️ Bombombini Gusini"] },
-  "🌳 Brr Cappucino": { emoji: "🌳", parents: ["🌳 Brr Brr Patapim", "☕ Capuccino Assassino"] },
+// Generate level 1 combos: all pairs of base pets (level 0)
+const baseNames = Object.values(allEntries).filter(e => e.level === 0);
+for (let i = 0; i < baseNames.length; i++) {
+  for (let j = i + 1; j < baseNames.length; j++) {
+    const combo = makeCombo(baseNames[i], baseNames[j], 1);
+    if (combo) allEntries[combo.name] = combo;
+  }
+}
 
-  "🍌 Bananini Sahur": { emoji: "🍌", parents: ["🍌 Chimpanzini Bananini", "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur"] },
-  "🍌 Chimpanzini Skibidi": { emoji: "🍌", parents: ["🍌 Chimpanzini Bananini", "🚽 Skibidi Toilet"] },
-  "🍌 Bananini Saturno": { emoji: "🍌", parents: ["🍌 Chimpanzini Bananini", "🪐 La Vaca Saturno Saturnita"] },
+// Generate level 2 combos:
+// All pairs where each member is either level 0 or level 1
+const level0and1 = Object.values(allEntries).filter(e => e.level <= 1);
+for (let i = 0; i < level0and1.length; i++) {
+  for (let j = i + 1; j < level0and1.length; j++) {
+    // Only combos of level 2 allowed here (skip existing combos)
+    const combo = makeCombo(level0and1[i], level0and1[j], 2);
+    if (combo) allEntries[combo.name] = combo;
+  }
+}
 
-  "✈️ Bombombini Frulla": { emoji: "✈️", parents: ["✈️ Bombombini Gusini", "✨ Frulli Frulla"] },
-  "🐊 Gusini Crocodilo": { emoji: "🐊", parents: ["✈️ Bombombini Gusini", "🐊 Bombardiro Crocodilo"] },
-  "✈️ Bombombini Cappucina": { emoji: "✈️", parents: ["✈️ Bombombini Gusini", "☕ Capuccino Assassino"] },
-
-  "☕ Assassino Trippi": { emoji: "☕", parents: ["☕ Capuccino Assassino", "🐻 Trippi Troppi"] },
-  "☕ Capuccino Saturnita": { emoji: "☕", parents: ["☕ Capuccino Assassino", "🪐 La Vaca Saturno Saturnita"] },
-  "☕ Cappucina Lirilì": { emoji: "☕", parents: ["☕ Capuccino Assassino", "🌵 Lirilì Larilà"] },
-
-  "🐻 Troppi Bananini": { emoji: "🐻", parents: ["🐻 Trippi Troppi", "🍌 Chimpanzini Bananini"] },
-  "🐻 Trippi Frulla": { emoji: "🐻", parents: ["🐻 Trippi Troppi", "✨ Frulli Frulla"] },
-  "🐻 Trippi Sahur": { emoji: "🐻", parents: ["🐻 Trippi Troppi", "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur"] },
-
-  "🐪 Frigo Crocodilo": { emoji: "🐪", parents: ["🐪 Frigo Camelo", "🐊 Bombardiro Crocodilo"] },
-  "🐪 Camelo Tralala": { emoji: "🐪", parents: ["🐪 Frigo Camelo", "🦈 Tralalero Tralala"] },
-  "🐪 Frigo Toilet": { emoji: "🐪", parents: ["🐪 Frigo Camelo", "🚽 Skibidi Toilet"] },
-
-  "🪐 Saturnita Bombardiro": { emoji: "🪐", parents: ["🪐 La Vaca Saturno Saturnita", "🐊 Bombardiro Crocodilo"] },
-  "🪐 Vaca Cappucino": { emoji: "🪐", parents: ["🪐 La Vaca Saturno Saturnita", "☕ Capuccino Assassino"] },
-  "🪐 Saturno Larilà": { emoji: "🪐", parents: ["🪐 La Vaca Saturno Saturnita", "🌵 Lirilì Larilà"] },
-
-  "💃 Cappucina Trippi": { emoji: "💃", parents: ["💃 Ballerina Cappucina", "🐻 Trippi Troppi"] },
-  "💃 Ballerina Banana": { emoji: "💃", parents: ["💃 Ballerina Cappucina", "🍌 Chimpanzini Bananini"] },
-  "💃 Cappucina Sahur": { emoji: "💃", parents: ["💃 Ballerina Cappucina", "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur"] },
-
-  "🍊 Din Din Frulla": { emoji: "🍊", parents: ["🍊 U Din Din Din Din Dun Ma Din Din Din Dun", "✨ Frulli Frulla"] },
-  "🍊 Din Dun Camelo": { emoji: "🍊", parents: ["🍊 U Din Din Din Din Dun Ma Din Din Din Dun", "🐪 Frigo Camelo"] },
-  "🍊 Din Tralalero": { emoji: "🍊", parents: ["🍊 U Din Din Din Din Dun Ma Din Din Din Dun", "🦈 Tralalero Tralala"] },
-
-  "✨ Frulla Ambalabu": { emoji: "✨", parents: ["✨ Frulli Frulla", "🐸 Boneca Ambalabu"] },
-  "✨ Frulli Gusini": { emoji: "✨", parents: ["✨ Frulli Frulla", "✈️ Bombombini Gusini"] },
-  "✨ Frulla Brr Brr": { emoji: "✨", parents: ["✨ Frulli Frulla", "🌳 Brr Brr Patapim"] },
-
-  "🚽 Toilet Cappucino": { emoji: "🚽", parents: ["🚽 Skibidi Toilet", "☕ Capuccino Assassino"] },
-  "🚽 Skibidi Frulla": { emoji: "🚽", parents: ["🚽 Skibidi Toilet", "✨ Frulli Frulla"] },
-  "🚽 Toilet Bombombini": { emoji: "🚽", parents: ["🚽 Skibidi Toilet", "✈️ Bombombini Gusini"] }
-};
-
-// Settings
-const MAX_DEPTH = 10;
-
+// UI references
 const breadcrumbDiv = document.querySelector(".breadcrumb");
-const petTreeContainer = document.getElementById("pet-tree-container");
+const petDetailsDiv = document.getElementById("pet-details");
+const petList = document.getElementById("pet-list");
 
 let path = [];
 
-// Create clickable span
+// Create clickable span helper
 function createClickable(text, onClick) {
   const span = document.createElement("span");
   span.textContent = text;
@@ -184,12 +172,12 @@ function createClickable(text, onClick) {
   return span;
 }
 
-// Update breadcrumb
+// Update breadcrumb UI
 function updateBreadcrumb() {
   breadcrumbDiv.innerHTML = "";
   const home = createClickable("Home", () => {
     path = [];
-    showPetTree(null);
+    showPetList();
   });
   breadcrumbDiv.appendChild(home);
 
@@ -198,100 +186,81 @@ function updateBreadcrumb() {
     breadcrumbDiv.appendChild(sep);
     const span = createClickable(node.name, () => {
       path = path.slice(0, i + 1);
-      showPetTree(path[i].name);
+      showPetDetails(path[i].name);
     });
     breadcrumbDiv.appendChild(span);
   });
 }
 
-// Recursive function to create the ancestry tree as nested UL/LI
-function createAncestryTree(name, depth = 0) {
-  const li = document.createElement("li");
-  const data = comboData[name];
-  const emoji = data?.emoji || "❓";
-  li.innerHTML = `<span class="emoji">${emoji}</span>${name}`;
-  li.onclick = (e) => {
-    e.stopPropagation();
-    // Add to path and update main view
-    path.push({ name });
-    showPetTree(name);
-  };
-  // If has parents and depth not too deep, recurse
-  if (data && data.parents.length === 2 && depth < MAX_DEPTH) {
-    const ul = document.createElement("ul");
-    data.parents.forEach((parentName) => {
-      ul.appendChild(createAncestryTree(parentName, depth + 1));
-    });
-    li.appendChild(ul);
-  } else if (data && data.parents.length === 0) {
-    // Base pet note
-    const note = document.createElement("em");
-    note.style.display = "block";
-    note.style.fontSize = "0.8em";
-    note.style.marginTop = "4px";
-    note.style.color = "#aa88cc";
-    note.textContent = "Base pet (no parents)";
-    li.appendChild(note);
-  }
-  return li;
-}
-
-// Show the full ancestry tree for a selected pet/combo, or full list if none
-function showPetTree(selectedName) {
+// Show all pets and combos list (sorted)
+function showPetList() {
   updateBreadcrumb();
-  petTreeContainer.innerHTML = "";
-  if (!selectedName) {
-    // Show full alphabetized list of all pets/combos as top-level clickable items
-    const ul = document.createElement("ul");
-    Object.keys(comboData)
-      .sort()
-      .forEach((name) => {
-        const li = document.createElement("li");
-        const emoji = comboData[name]?.emoji || "❓";
-        li.innerHTML = `<span class="emoji">${emoji}</span>${name}`;
-        li.onclick = () => {
-          path = [{ name }];
-          showPetTree(name);
-        };
-        ul.appendChild(li);
-      });
-    petTreeContainer.appendChild(ul);
-  } else {
-    // Show selected pet/combo as root and full ancestry expanded below
-    const rootDiv = document.createElement("div");
-    rootDiv.className = "pet-title";
-    const emoji = comboData[selectedName]?.emoji || "❓";
-    rootDiv.innerHTML = `<span class="emoji">${emoji}</span><strong>${selectedName}</strong>`;
-    petTreeContainer.appendChild(rootDiv);
+  petDetailsDiv.innerHTML = "<em>Select a pet or combo to see its parents.</em>";
+  petList.innerHTML = "";
 
-    const ul = document.createElement("ul");
-    const data = comboData[selectedName];
-    if (!data) {
-      const notFound = document.createElement("div");
-      notFound.textContent = "Unknown pet/combo.";
-      petTreeContainer.appendChild(notFound);
-      return;
-    }
+  // Sort entries by level then name
+  const sortedEntries = Object.values(allEntries).sort((a, b) => {
+    if (a.level !== b.level) return a.level - b.level;
+    return a.name.localeCompare(b.name);
+  });
 
-    if (data.parents.length === 0) {
-      const baseNote = document.createElement("div");
-      baseNote.style.fontStyle = "italic";
-      baseNote.style.marginTop = "8px";
-      baseNote.textContent = "This is a base/original pet — no parents.";
-      petTreeContainer.appendChild(baseNote);
-      return;
-    }
-
-    data.parents.forEach((parentName) => {
-      ul.appendChild(createAncestryTree(parentName, 1));
-    });
-
-    petTreeContainer.appendChild(ul);
+  for (const entry of sortedEntries) {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="emoji">${entry.emoji}</span>${entry.name} <small style="color:#888;">(Level ${entry.level})</small>`;
+    li.onclick = () => {
+      path = [{ name: entry.name }];
+      showPetDetails(entry.name);
+    };
+    petList.appendChild(li);
   }
 }
 
-// Initial load: show full pet/combo list
-showPetTree(null);
+// Show details for one pet/combo, including parents
+function showPetDetails(name) {
+  updateBreadcrumb();
+  const entry = allEntries[name];
+  if (!entry) {
+    petDetailsDiv.textContent = "Unknown pet/combo.";
+    return;
+  }
+
+  petDetailsDiv.innerHTML = "";
+  const title = document.createElement("div");
+  title.className = "pet-title";
+  title.innerHTML = `<span class="emoji">${entry.emoji}</span><strong>${entry.name}</strong>`;
+  petDetailsDiv.appendChild(title);
+
+  if (entry.parents.length === 0) {
+    const baseNote = document.createElement("div");
+    baseNote.style.fontStyle = "italic";
+    baseNote.textContent = "This is a base/original pet — no parents.";
+    petDetailsDiv.appendChild(baseNote);
+    return;
+  }
+
+  const parentsTitle = document.createElement("div");
+  parentsTitle.textContent = "Formed by combining these two parents:";
+  parentsTitle.style.marginTop = "10px";
+  petDetailsDiv.appendChild(parentsTitle);
+
+  const ul = document.createElement("ul");
+  ul.className = "parents-list";
+  entry.parents.forEach((pName) => {
+    const p = allEntries[pName];
+    if (!p) return;
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="emoji">${p.emoji}</span>${p.name} <small style="color:#888;">(Level ${p.level})</small>`;
+    li.onclick = () => {
+      path.push({ name: p.name });
+      showPetDetails(p.name);
+    };
+    ul.appendChild(li);
+  });
+  petDetailsDiv.appendChild(ul);
+}
+
+// Initial display
+showPetList();
 </script>
 </body>
 </html>
