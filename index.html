@@ -1,135 +1,348 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VIP Hall - Psycho Hatcher</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet">
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Orbitron', sans-serif;
-      background: linear-gradient(to bottom, #0a0000, #1a0000);
-      color: #D3DA15;
-      text-align: center;
-    }
-
-    h1 {
-      font-size: 2.5em;
-      margin-top: 1em;
-      color: #D3DA15;
-    }
-
-    .subheading {
-      font-size: 1.2em;
-      color: #ffc;
-      margin-bottom: 2em;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 20px;
-      max-width: 1000px;
-      margin: 0 auto 3em;
-      padding: 0 20px;
-    }
-
-    .card {
-      background: rgba(211, 218, 21, 0.08);
-      border: 2px solid #D3DA15;
-      border-radius: 15px;
-      padding: 20px;
-      color: #fff;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 0 15px #D3DA15;
-    }
-
-    .card h2 {
-      color: #D3DA15;
-      margin-bottom: 0.5em;
-      font-size: 1.2em;
-    }
-
-    .card span {
-      font-size: 2em;
-      display: block;
-      margin-bottom: 10px;
-    }
-
-    footer {
-      padding: 2em;
-      background-color: #111;
-      color: #999;
-      font-size: 0.9em;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Make a Brainrot Combos Explorer</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #121212; color: #eee; margin: 20px; }
+  h1 { text-align: center; color: #ff55aa; }
+  .breadcrumb { margin-bottom: 15px; }
+  .breadcrumb span {
+    cursor: pointer;
+    color: #ff77cc;
+    text-decoration: underline;
+  }
+  .breadcrumb span:hover {
+    color: #ff33aa;
+  }
+  ul { list-style-type: none; padding: 0; }
+  li {
+    padding: 10px;
+    margin-bottom: 6px;
+    background: #222;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+    font-size: 1.2em;
+  }
+  li:hover { background: #330022; }
+  .emoji { font-size: 1.4em; margin-right: 10px; }
+  .container {
+    max-width: 600px;
+    margin: auto;
+    background: #1b1b1b;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 0 20px #ff33aa88;
+  }
+  .footer {
+    text-align: center;
+    margin-top: 40px;
+    font-size: 0.9em;
+    color: #777;
+  }
+</style>
 </head>
 <body>
-  <h1>👑 Welcome to the VIP Hall</h1>
-  <p class="subheading">Support our community and unlock Exclusive Macros + Server Benefits!</p>
+<div class="container">
+  <h1>Make a Brainrot Combos Explorer</h1>
+  <div class="breadcrumb"></div>
+  <ul id="combo-list"></ul>
+</div>
 
-  <div class="grid">
-    <div class="card">
-      <span>🧠</span>
-      <h2>Psycho Manager</h2>
-      <p>AFK-grinds everything across all your accounts simultaneously.</p>
-    </div>
-    <div class="card">
-      <span>🚀</span>
-      <h2>Psycho LVL UP</h2>
-      <p>Auto-levels all your alts into Void World.</p>
-    </div>
-    <div class="card">
-      <span>📈</span>
-      <h2>Market Snipe</h2>
-      <p>Finds and buys underpriced items via trading terminal.</p>
-    </div>
-    <div class="card">
-      <span>🥚</span>
-      <h2>BGSI Hatching</h2>
-      <p>Farms BGSI coins and hatches eggs.</p>
-    </div>
-    <div class="card">
-      <span>🏪</span>
-      <h2>Trading Plaza Booth</h2>
-      <p>Keeps your booth active even while AFK.</p>
-    </div>
-    <div class="card">
-      <span>🛠️</span>
-      <h2>24/7 Priority Support</h2>
-      <p>Fast responses via our dedicated VIP support channel.</p>
-    </div>
-    <div class="card">
-      <span>🎁</span>
-      <h2>VIP Giveaways</h2>
-      <p>Exclusive giveaways just for VIP members.</p>
-    </div>
-    <div class="card">
-      <span>🔓</span>
-      <h2>Early Access</h2>
-      <p>Try new features before they go public.</p>
-    </div>
-    <div class="card">
-      <span>🧪</span>
-      <h2>Test Mode</h2>
-      <p>Preview upcoming features before anyone else.</p>
-    </div>
-    <div class="card">
-      <span>🎣</span>
-      <h2>Pets Go Fishing</h2>
-      <p>Auto-fishing in Pets GO!</p>
-    </div>
-  </div>
+<script>
+// === Data: characters and their combos ===
+// Format: "Name": [ {name: "Combo Name", emoji: "🐊"}, ... ]
 
-  <footer>
-    VIP access is granted for 30 days per donation. Donate any amount via Stripe:<br>
-    <a href="https://donate.stripe.com/00gcPYdimdq0f1m9AA" target="_blank" style="color:#D3DA15; text-decoration: underline;">Donate Here</a><br>
-    Send your donation screenshot in a ticket to receive access!
-  </footer>
+const combosData = {
+  "🦈 Tralalero Tralala": [
+    { name: "🦈 Tralalero Bombombini", emoji: "🦈" },
+    { name: "🦈 Tralala Cappucina", emoji: "🦈" },
+    { name: "🦈 Trippi Tralala", emoji: "🦈" }
+  ],
+  "🦈 Tralalero Bombombini": [
+    { name: "🦈 Tralalero Cappucina", emoji: "🦈" },
+    { name: "🦈 Tralalero Frulla", emoji: "🦈" },
+    { name: "🦈 Tralalero Sahur", emoji: "🦈" }
+  ],
+  "🦈 Tralala Cappucina": [],
+  "🦈 Trippi Tralala": [],
+  
+  "🐊 Bombardiro Crocodilo": [
+    { name: "🐪 Crocodilo Camelo", emoji: "🐪" },
+    { name: "🐊 Bombardiro Patapim", emoji: "🌳" },
+    { name: "✨ Frulla Crocodiro", emoji: "✨" }
+  ],
+  "🐪 Crocodilo Camelo": [],
+  "🐊 Bombardiro Patapim": [],
+  "✨ Frulla Crocodiro": [],
+  
+  "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur": [
+    { name: "🥁 Tung Sahur Bananini", emoji: "🥁" },
+    { name: "🚽 Tung Skibidi Bomb", emoji: "🚽" },
+    { name: "🥁 Tung Trippi Larilà", emoji: "🥁" }
+  ],
+  "🥁 Tung Sahur Bananini": [],
+  "🚽 Tung Skibidi Bomb": [],
+  "🥁 Tung Trippi Larilà": [],
+  
+  "🌵 Lirilì Larilà": [
+    { name: "🌵 Larilà Saturnita", emoji: "🪐" },
+    { name: "🌵 Lirilì Ambalabu", emoji: "🐸" },
+    { name: "🌵 Lirilì Cappucino", emoji: "☕" }
+  ],
+  "🌵 Larilà Saturnita": [],
+  "🌵 Lirilì Ambalabu": [],
+  "🌵 Lirilì Cappucino": [],
+  
+  "🐸 Boneca Ambalabu": [
+    { name: "🐸 Ambalabu Trippi", emoji: "🐸" },
+    { name: "🐸 Boneca Ballerina", emoji: "💃" },
+    { name: "🐸 Ambalabu Frulla", emoji: "✨" }
+  ],
+  "🐸 Ambalabu Trippi": [],
+  "🐸 Boneca Ballerina": [],
+  "🐸 Ambalabu Frulla": [],
+  
+  "🌳 Brr Brr Patapim": [
+    { name: "🐪 Patapim Camelo", emoji: "🐪" },
+    { name: "🌳 Brr Brr Gusini", emoji: "✈️" },
+    { name: "🌳 Brr Cappucino", emoji: "☕" }
+  ],
+  "🐪 Patapim Camelo": [],
+  "🌳 Brr Brr Gusini": [],
+  "🌳 Brr Cappucino": [],
+  
+  "🍌 Chimpanzini Bananini": [
+    { name: "🍌 Bananini Sahur", emoji: "🍌" },
+    { name: "🍌 Chimpanzini Skibidi", emoji: "🚽" },
+    { name: "🍌 Bananini Saturno", emoji: "🪐" }
+  ],
+  "🍌 Bananini Sahur": [],
+  "🍌 Chimpanzini Skibidi": [],
+  "🍌 Bananini Saturno": [],
+  
+  "✈️ Bombombini Gusini": [
+    { name: "✈️ Bombombini Frulla", emoji: "✨" },
+    { name: "🐊 Gusini Crocodilo", emoji: "🐊" },
+    { name: "✈️ Bombombini Cappucina", emoji: "☕" }
+  ],
+  "✈️ Bombombini Frulla": [],
+  "🐊 Gusini Crocodilo": [],
+  "✈️ Bombombini Cappucina": [],
+  
+  "☕ Capuccino Assassino": [
+    { name: "☕ Assassino Trippi", emoji: "☕" },
+    { name: "☕ Capuccino Saturnita", emoji: "🪐" },
+    { name: "☕ Cappucina Lirilì", emoji: "🌵" }
+  ],
+  "☕ Assassino Trippi": [],
+  "☕ Capuccino Saturnita": [],
+  "☕ Cappucina Lirilì": [],
+  
+  "🐻 Trippi Troppi": [
+    { name: "🐻 Troppi Bananini", emoji: "🍌" },
+    { name: "🐻 Trippi Frulla", emoji: "✨" },
+    { name: "🐻 Trippi Sahur", emoji: "🥁" }
+  ],
+  "🐻 Troppi Bananini": [],
+  "🐻 Trippi Frulla": [],
+  "🐻 Trippi Sahur": [],
+  
+  "🐪 Frigo Camelo": [
+    { name: "🐪 Frigo Crocodilo", emoji: "🐊" },
+    { name: "🐪 Camelo Tralala", emoji: "🦈" },
+    { name: "🐪 Frigo Toilet", emoji: "🚽" }
+  ],
+  "🐪 Frigo Crocodilo": [],
+  "🐪 Camelo Tralala": [],
+  "🐪 Frigo Toilet": [],
+  
+  "🪐 La Vaca Saturno Saturnita": [
+    { name: "🪐 Saturnita Bombardiro", emoji: "🐊" },
+    { name: "🪐 Vaca Cappucino", emoji: "☕" },
+    { name: "🪐 Saturno Larilà", emoji: "🌵" }
+  ],
+  "🪐 Saturnita Bombardiro": [],
+  "🪐 Vaca Cappucino": [],
+  "🪐 Saturno Larilà": [],
+  
+  "💃 Ballerina Cappucina": [
+    { name: "💃 Cappucina Trippi", emoji: "☕" },
+    { name: "💃 Ballerina Banana", emoji: "🍌" },
+    { name: "💃 Cappucina Sahur", emoji: "🥁" }
+  ],
+  "💃 Cappucina Trippi": [],
+  "💃 Ballerina Banana": [],
+  "💃 Cappucina Sahur": [],
+  
+  "🍊 U Din Din Din Din Dun Ma Din Din Din Dun": [
+    { name: "🍊 Din Din Frulla", emoji: "✨" },
+    { name: "🍊 Din Dun Camelo", emoji: "🐪" },
+    { name: "🍊 Din Tralalero", emoji: "🦈" }
+  ],
+  "🍊 Din Din Frulla": [],
+  "🍊 Din Dun Camelo": [],
+  "🍊 Din Tralalero": [],
+  
+  "✨ Frulli Frulla": [
+    { name: "✨ Frulla Ambalabu", emoji: "🐸" },
+    { name: "✨ Frulli Gusini", emoji: "✈️" },
+    { name: "✨ Frulla Brr Brr", emoji: "🌳" }
+  ],
+  "✨ Frulla Ambalabu": [],
+  "✨ Frulli Gusini": [],
+  "✨ Frulla Brr Brr": [],
+  
+  "🚽 Skibidi Toilet": [
+    { name: "🚽 Toilet Cappucino", emoji: "☕" },
+    { name: "🚽 Skibidi Frulla", emoji: "✨" },
+    { name: "🚽 Toilet Bombombini", emoji: "✈️" }
+  ],
+  "🚽 Toilet Cappucino": [],
+  "🚽 Skibidi Frulla": [],
+  "🚽 Toilet Bombombini": []
+};
+
+// === Settings ===
+const MAX_DEPTH = 3;
+
+const breadcrumbDiv = document.querySelector(".breadcrumb");
+const comboList = document.getElementById("combo-list");
+
+// Path stack to track navigation (array of {name, emoji})
+let path = [];
+
+// Utility: Extract emoji from a combo name (first emoji)
+function extractEmoji(name) {
+  const match = name.match(/^[\p{Emoji_Presentation}\p{Emoji}\u200d]+/u);
+  return match ? match[0] : "❓";
+}
+
+// Show combos for a given character/combo name
+function showCombos(name, depth) {
+  // Update breadcrumb
+  updateBreadcrumb();
+
+  // Clear previous list
+  comboList.innerHTML = "";
+
+  // Defensive: stop if too deep
+  if (depth > MAX_DEPTH) {
+    const li = document.createElement("li");
+    li.textContent = "(Reached max combo depth)";
+    li.style.fontStyle = "italic";
+    comboList.appendChild(li);
+    return;
+  }
+
+  // Show current node as title
+  const titleLi = document.createElement("li");
+  titleLi.textContent = `Current: ${name}`;
+  titleLi.style.backgroundColor = "#ff33aa44";
+  titleLi.style.fontWeight = "bold";
+  titleLi.style.cursor = "default";
+  comboList.appendChild(titleLi);
+
+  // Get combos for this name
+  const combos = combosData[name];
+
+  if (!combos) {
+    // No combos found
+    const li = document.createElement("li");
+    li.textContent = "No combos found.";
+    li.style.fontStyle = "italic";
+    comboList.appendChild(li);
+    return;
+  }
+
+  if (combos.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = "(No further combos)";
+    li.style.fontStyle = "italic";
+    comboList.appendChild(li);
+    return;
+  }
+
+  // Create list items for combos
+  combos.forEach((combo) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="emoji">${combo.emoji}</span>${combo.name}`;
+    li.onclick = () => {
+      path.push(combo);
+      showCombos(combo.name, depth + 1);
+    };
+    comboList.appendChild(li);
+  });
+}
+
+// Update breadcrumb UI
+function updateBreadcrumb() {
+  breadcrumbDiv.innerHTML = "";
+
+  // Root home link
+  const homeSpan = document.createElement("span");
+  homeSpan.textContent = "Home";
+  homeSpan.onclick = () => {
+    path = [];
+    showRoot();
+  };
+  breadcrumbDiv.appendChild(homeSpan);
+
+  // Add separator and path items
+  path.forEach((node, i) => {
+    const sep = document.createTextNode(" > ");
+    breadcrumbDiv.appendChild(sep);
+
+    const span = document.createElement("span");
+    span.textContent = node.name;
+    span.onclick = () => {
+      // Go back to this node in path
+      path = path.slice(0, i + 1);
+      showCombos(node.name, i + 1);
+    };
+    breadcrumbDiv.appendChild(span);
+  });
+}
+
+// Show root list of original characters
+function showRoot() {
+  comboList.innerHTML = "";
+
+  // List all keys in combosData that have combos defined
+  // Assume original characters are keys with combos > 0
+
+  const originals = Object.keys(combosData).filter(
+    (name) => combosData[name].length > 0
+  );
+
+  originals.forEach((name) => {
+    // Extract emoji for display
+    const emoji = extractEmoji(name);
+
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="emoji">${emoji}</span>${name}`;
+    li.onclick = () => {
+      path = [{ name, emoji }];
+      showCombos(name, 1);
+    };
+    comboList.appendChild(li);
+  });
+
+  // Reset breadcrumb
+  breadcrumbDiv.innerHTML = "";
+  const homeSpan = document.createElement("span");
+  homeSpan.textContent = "Home";
+  breadcrumbDiv.appendChild(homeSpan);
+}
+
+// Initial load
+showRoot();
+</script>
+<div class="footer">
+  Made for <strong>Make a Brainrot</strong> combo exploration.<br />
+  Click items to explore combos-of-combos recursively.
+</div>
 </body>
 </html>
