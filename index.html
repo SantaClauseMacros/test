@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Make a Brainrot Combo Ancestry Explorer</title>
+<title>Make a Brainrot Full Combo Ancestry Tree</title>
 <style>
   body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -27,18 +27,12 @@
     color: #ff33aa;
   }
   .container {
-    max-width: 650px;
+    max-width: 700px;
     margin: auto;
     background: #1b1b1b;
     padding: 20px;
     border-radius: 12px;
     box-shadow: 0 0 25px #ff33aa88;
-  }
-  .pet-box {
-    background: #2a2a2a;
-    border-radius: 12px;
-    padding: 18px;
-    margin-bottom: 20px;
   }
   .pet-title {
     font-size: 1.5em;
@@ -51,20 +45,15 @@
   }
   ul {
     list-style-type: none;
-    padding-left: 0;
+    padding-left: 20px;
   }
   li {
-    background: #330022;
-    margin: 8px 0;
-    padding: 12px;
-    border-radius: 8px;
+    margin: 6px 0;
     cursor: pointer;
-    font-size: 1.1em;
-    transition: background-color 0.3s;
+    transition: color 0.3s;
   }
   li:hover {
-    background: #ff33aaaa;
-    color: #222;
+    color: #ff33aa;
   }
   .footer {
     text-align: center;
@@ -76,24 +65,21 @@
 </head>
 <body>
 <div class="container">
-  <h1>Make a Brainrot Combo Ancestry Explorer</h1>
+  <h1>Make a Brainrot Full Combo Ancestry Tree</h1>
   <div class="breadcrumb"></div>
-  <div class="pet-box" id="current-pet-box"></div>
-  <h3>Choose a pet/combo to explore ancestry:</h3>
-  <ul id="pet-list"></ul>
+  <div id="pet-tree-container"></div>
 </div>
 <div class="footer">
-  Made for <strong>Make a Brainrot</strong> combo exploration.<br />
-  Click pets to explore which two pets/combos combined to form it.<br />
-  Use breadcrumb to navigate back.<br />
-  Originals have no parents (base pets).
+  Click any pet/combo to jump there.<br />
+  The full combo ancestry tree is expanded recursively.<br />
+  Use breadcrumb for navigation.<br />
+  Originals have no parents.
 </div>
 
 <script>
-// === Data with parents: comboName => { emoji, parents: [parent1, parent2] }
-// Originals have empty parents array
+// Data with parents and emoji
 const comboData = {
-  // Originals (base pets)
+  // Originals
   "🦈 Tralalero Tralala": { emoji: "🦈", parents: [] },
   "🐊 Bombardiro Crocodilo": { emoji: "🐊", parents: [] },
   "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur": { emoji: "🥁", parents: [] },
@@ -111,225 +97,81 @@ const comboData = {
   "✨ Frulli Frulla": { emoji: "✨", parents: [] },
   "🚽 Skibidi Toilet": { emoji: "🚽", parents: [] },
 
-  // Combos with parents:
-  "🦈 Tralalero Bombombini": {
-    emoji: "🦈",
-    parents: ["🦈 Tralalero Tralala", "✈️ Bombombini Gusini"]
-  },
-  "🦈 Tralala Cappucina": {
-    emoji: "🦈",
-    parents: ["🦈 Tralalero Tralala", "☕ Capuccino Assassino"]
-  },
-  "🦈 Trippi Tralala": {
-    emoji: "🦈",
-    parents: ["🦈 Tralalero Tralala", "🐻 Trippi Troppi"]
-  },
+  // Combos
+  "🦈 Tralalero Bombombini": { emoji: "🦈", parents: ["🦈 Tralalero Tralala", "✈️ Bombombini Gusini"] },
+  "🦈 Tralala Cappucina": { emoji: "🦈", parents: ["🦈 Tralalero Tralala", "☕ Capuccino Assassino"] },
+  "🦈 Trippi Tralala": { emoji: "🦈", parents: ["🦈 Tralalero Tralala", "🐻 Trippi Troppi"] },
 
-  "🐪 Crocodilo Camelo": {
-    emoji: "🐪",
-    parents: ["🐊 Bombardiro Crocodilo", "🐪 Frigo Camelo"]
-  },
-  "🐊 Bombardiro Patapim": {
-    emoji: "🐊",
-    parents: ["🐊 Bombardiro Crocodilo", "🌳 Brr Brr Patapim"]
-  },
-  "✨ Frulla Crocodiro": {
-    emoji: "✨",
-    parents: ["🐊 Bombardiro Crocodilo", "✨ Frulli Frulla"]
-  },
+  "🐪 Crocodilo Camelo": { emoji: "🐪", parents: ["🐊 Bombardiro Crocodilo", "🐪 Frigo Camelo"] },
+  "🐊 Bombardiro Patapim": { emoji: "🐊", parents: ["🐊 Bombardiro Crocodilo", "🌳 Brr Brr Patapim"] },
+  "✨ Frulla Crocodiro": { emoji: "✨", parents: ["🐊 Bombardiro Crocodilo", "✨ Frulli Frulla"] },
 
-  "🥁 Tung Sahur Bananini": {
-    emoji: "🥁",
-    parents: ["🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur", "🍌 Chimpanzini Bananini"]
-  },
-  "🚽 Tung Skibidi Bomb": {
-    emoji: "🚽",
-    parents: ["🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur", "🚽 Skibidi Toilet"]
-  },
-  "🥁 Tung Trippi Larilà": {
-    emoji: "🥁",
-    parents: ["🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur", "🐻 Trippi Troppi"]
-  },
+  "🥁 Tung Sahur Bananini": { emoji: "🥁", parents: ["🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur", "🍌 Chimpanzini Bananini"] },
+  "🚽 Tung Skibidi Bomb": { emoji: "🚽", parents: ["🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur", "🚽 Skibidi Toilet"] },
+  "🥁 Tung Trippi Larilà": { emoji: "🥁", parents: ["🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur", "🐻 Trippi Troppi"] },
 
-  "🌵 Larilà Saturnita": {
-    emoji: "🌵",
-    parents: ["🌵 Lirilì Larilà", "🪐 La Vaca Saturno Saturnita"]
-  },
-  "🌵 Lirilì Ambalabu": {
-    emoji: "🌵",
-    parents: ["🌵 Lirilì Larilà", "🐸 Boneca Ambalabu"]
-  },
-  "🌵 Lirilì Cappucino": {
-    emoji: "🌵",
-    parents: ["🌵 Lirilì Larilà", "☕ Capuccino Assassino"]
-  },
+  "🌵 Larilà Saturnita": { emoji: "🌵", parents: ["🌵 Lirilì Larilà", "🪐 La Vaca Saturno Saturnita"] },
+  "🌵 Lirilì Ambalabu": { emoji: "🌵", parents: ["🌵 Lirilì Larilà", "🐸 Boneca Ambalabu"] },
+  "🌵 Lirilì Cappucino": { emoji: "🌵", parents: ["🌵 Lirilì Larilà", "☕ Capuccino Assassino"] },
 
-  "🐸 Ambalabu Trippi": {
-    emoji: "🐸",
-    parents: ["🐸 Boneca Ambalabu", "🐻 Trippi Troppi"]
-  },
-  "🐸 Boneca Ballerina": {
-    emoji: "🐸",
-    parents: ["🐸 Boneca Ambalabu", "💃 Ballerina Cappucina"]
-  },
-  "🐸 Ambalabu Frulla": {
-    emoji: "🐸",
-    parents: ["🐸 Boneca Ambalabu", "✨ Frulli Frulla"]
-  },
+  "🐸 Ambalabu Trippi": { emoji: "🐸", parents: ["🐸 Boneca Ambalabu", "🐻 Trippi Troppi"] },
+  "🐸 Boneca Ballerina": { emoji: "🐸", parents: ["🐸 Boneca Ambalabu", "💃 Ballerina Cappucina"] },
+  "🐸 Ambalabu Frulla": { emoji: "🐸", parents: ["🐸 Boneca Ambalabu", "✨ Frulli Frulla"] },
 
-  "🐪 Patapim Camelo": {
-    emoji: "🐪",
-    parents: ["🌳 Brr Brr Patapim", "🐪 Frigo Camelo"]
-  },
-  "🌳 Brr Brr Gusini": {
-    emoji: "🌳",
-    parents: ["🌳 Brr Brr Patapim", "✈️ Bombombini Gusini"]
-  },
-  "🌳 Brr Cappucino": {
-    emoji: "🌳",
-    parents: ["🌳 Brr Brr Patapim", "☕ Capuccino Assassino"]
-  },
+  "🐪 Patapim Camelo": { emoji: "🐪", parents: ["🌳 Brr Brr Patapim", "🐪 Frigo Camelo"] },
+  "🌳 Brr Brr Gusini": { emoji: "🌳", parents: ["🌳 Brr Brr Patapim", "✈️ Bombombini Gusini"] },
+  "🌳 Brr Cappucino": { emoji: "🌳", parents: ["🌳 Brr Brr Patapim", "☕ Capuccino Assassino"] },
 
-  "🍌 Bananini Sahur": {
-    emoji: "🍌",
-    parents: ["🍌 Chimpanzini Bananini", "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur"]
-  },
-  "🍌 Chimpanzini Skibidi": {
-    emoji: "🍌",
-    parents: ["🍌 Chimpanzini Bananini", "🚽 Skibidi Toilet"]
-  },
-  "🍌 Bananini Saturno": {
-    emoji: "🍌",
-    parents: ["🍌 Chimpanzini Bananini", "🪐 La Vaca Saturno Saturnita"]
-  },
+  "🍌 Bananini Sahur": { emoji: "🍌", parents: ["🍌 Chimpanzini Bananini", "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur"] },
+  "🍌 Chimpanzini Skibidi": { emoji: "🍌", parents: ["🍌 Chimpanzini Bananini", "🚽 Skibidi Toilet"] },
+  "🍌 Bananini Saturno": { emoji: "🍌", parents: ["🍌 Chimpanzini Bananini", "🪐 La Vaca Saturno Saturnita"] },
 
-  "✈️ Bombombini Frulla": {
-    emoji: "✈️",
-    parents: ["✈️ Bombombini Gusini", "✨ Frulli Frulla"]
-  },
-  "🐊 Gusini Crocodilo": {
-    emoji: "🐊",
-    parents: ["✈️ Bombombini Gusini", "🐊 Bombardiro Crocodilo"]
-  },
-  "✈️ Bombombini Cappucina": {
-    emoji: "✈️",
-    parents: ["✈️ Bombombini Gusini", "☕ Capuccino Assassino"]
-  },
+  "✈️ Bombombini Frulla": { emoji: "✈️", parents: ["✈️ Bombombini Gusini", "✨ Frulli Frulla"] },
+  "🐊 Gusini Crocodilo": { emoji: "🐊", parents: ["✈️ Bombombini Gusini", "🐊 Bombardiro Crocodilo"] },
+  "✈️ Bombombini Cappucina": { emoji: "✈️", parents: ["✈️ Bombombini Gusini", "☕ Capuccino Assassino"] },
 
-  "☕ Assassino Trippi": {
-    emoji: "☕",
-    parents: ["☕ Capuccino Assassino", "🐻 Trippi Troppi"]
-  },
-  "☕ Capuccino Saturnita": {
-    emoji: "☕",
-    parents: ["☕ Capuccino Assassino", "🪐 La Vaca Saturno Saturnita"]
-  },
-  "☕ Cappucina Lirilì": {
-    emoji: "☕",
-    parents: ["☕ Capuccino Assassino", "🌵 Lirilì Larilà"]
-  },
+  "☕ Assassino Trippi": { emoji: "☕", parents: ["☕ Capuccino Assassino", "🐻 Trippi Troppi"] },
+  "☕ Capuccino Saturnita": { emoji: "☕", parents: ["☕ Capuccino Assassino", "🪐 La Vaca Saturno Saturnita"] },
+  "☕ Cappucina Lirilì": { emoji: "☕", parents: ["☕ Capuccino Assassino", "🌵 Lirilì Larilà"] },
 
-  "🐻 Troppi Bananini": {
-    emoji: "🐻",
-    parents: ["🐻 Trippi Troppi", "🍌 Chimpanzini Bananini"]
-  },
-  "🐻 Trippi Frulla": {
-    emoji: "🐻",
-    parents: ["🐻 Trippi Troppi", "✨ Frulli Frulla"]
-  },
-  "🐻 Trippi Sahur": {
-    emoji: "🐻",
-    parents: ["🐻 Trippi Troppi", "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur"]
-  },
+  "🐻 Troppi Bananini": { emoji: "🐻", parents: ["🐻 Trippi Troppi", "🍌 Chimpanzini Bananini"] },
+  "🐻 Trippi Frulla": { emoji: "🐻", parents: ["🐻 Trippi Troppi", "✨ Frulli Frulla"] },
+  "🐻 Trippi Sahur": { emoji: "🐻", parents: ["🐻 Trippi Troppi", "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur"] },
 
-  "🐪 Frigo Crocodilo": {
-    emoji: "🐪",
-    parents: ["🐪 Frigo Camelo", "🐊 Bombardiro Crocodilo"]
-  },
-  "🐪 Camelo Tralala": {
-    emoji: "🐪",
-    parents: ["🐪 Frigo Camelo", "🦈 Tralalero Tralala"]
-  },
-  "🐪 Frigo Toilet": {
-    emoji: "🐪",
-    parents: ["🐪 Frigo Camelo", "🚽 Skibidi Toilet"]
-  },
+  "🐪 Frigo Crocodilo": { emoji: "🐪", parents: ["🐪 Frigo Camelo", "🐊 Bombardiro Crocodilo"] },
+  "🐪 Camelo Tralala": { emoji: "🐪", parents: ["🐪 Frigo Camelo", "🦈 Tralalero Tralala"] },
+  "🐪 Frigo Toilet": { emoji: "🐪", parents: ["🐪 Frigo Camelo", "🚽 Skibidi Toilet"] },
 
-  "🪐 Saturnita Bombardiro": {
-    emoji: "🪐",
-    parents: ["🪐 La Vaca Saturno Saturnita", "🐊 Bombardiro Crocodilo"]
-  },
-  "🪐 Vaca Cappucino": {
-    emoji: "🪐",
-    parents: ["🪐 La Vaca Saturno Saturnita", "☕ Capuccino Assassino"]
-  },
-  "🪐 Saturno Larilà": {
-    emoji: "🪐",
-    parents: ["🪐 La Vaca Saturno Saturnita", "🌵 Lirilì Larilà"]
-  },
+  "🪐 Saturnita Bombardiro": { emoji: "🪐", parents: ["🪐 La Vaca Saturno Saturnita", "🐊 Bombardiro Crocodilo"] },
+  "🪐 Vaca Cappucino": { emoji: "🪐", parents: ["🪐 La Vaca Saturno Saturnita", "☕ Capuccino Assassino"] },
+  "🪐 Saturno Larilà": { emoji: "🪐", parents: ["🪐 La Vaca Saturno Saturnita", "🌵 Lirilì Larilà"] },
 
-  "💃 Cappucina Trippi": {
-    emoji: "💃",
-    parents: ["💃 Ballerina Cappucina", "🐻 Trippi Troppi"]
-  },
-  "💃 Ballerina Banana": {
-    emoji: "💃",
-    parents: ["💃 Ballerina Cappucina", "🍌 Chimpanzini Bananini"]
-  },
-  "💃 Cappucina Sahur": {
-    emoji: "💃",
-    parents: ["💃 Ballerina Cappucina", "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur"]
-  },
+  "💃 Cappucina Trippi": { emoji: "💃", parents: ["💃 Ballerina Cappucina", "🐻 Trippi Troppi"] },
+  "💃 Ballerina Banana": { emoji: "💃", parents: ["💃 Ballerina Cappucina", "🍌 Chimpanzini Bananini"] },
+  "💃 Cappucina Sahur": { emoji: "💃", parents: ["💃 Ballerina Cappucina", "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur"] },
 
-  "🍊 Din Din Frulla": {
-    emoji: "🍊",
-    parents: ["🍊 U Din Din Din Din Dun Ma Din Din Din Dun", "✨ Frulli Frulla"]
-  },
-  "🍊 Din Dun Camelo": {
-    emoji: "🍊",
-    parents: ["🍊 U Din Din Din Din Dun Ma Din Din Din Dun", "🐪 Frigo Camelo"]
-  },
-  "🍊 Din Tralalero": {
-    emoji: "🍊",
-    parents: ["🍊 U Din Din Din Din Dun Ma Din Din Din Dun", "🦈 Tralalero Tralala"]
-  },
+  "🍊 Din Din Frulla": { emoji: "🍊", parents: ["🍊 U Din Din Din Din Dun Ma Din Din Din Dun", "✨ Frulli Frulla"] },
+  "🍊 Din Dun Camelo": { emoji: "🍊", parents: ["🍊 U Din Din Din Din Dun Ma Din Din Din Dun", "🐪 Frigo Camelo"] },
+  "🍊 Din Tralalero": { emoji: "🍊", parents: ["🍊 U Din Din Din Din Dun Ma Din Din Din Dun", "🦈 Tralalero Tralala"] },
 
-  "✨ Frulla Ambalabu": {
-    emoji: "✨",
-    parents: ["✨ Frulli Frulla", "🐸 Boneca Ambalabu"]
-  },
-  "✨ Frulli Gusini": {
-    emoji: "✨",
-    parents: ["✨ Frulli Frulla", "✈️ Bombombini Gusini"]
-  },
-  "✨ Frulla Brr Brr": {
-    emoji: "✨",
-    parents: ["✨ Frulli Frulla", "🌳 Brr Brr Patapim"]
-  },
+  "✨ Frulla Ambalabu": { emoji: "✨", parents: ["✨ Frulli Frulla", "🐸 Boneca Ambalabu"] },
+  "✨ Frulli Gusini": { emoji: "✨", parents: ["✨ Frulli Frulla", "✈️ Bombombini Gusini"] },
+  "✨ Frulla Brr Brr": { emoji: "✨", parents: ["✨ Frulli Frulla", "🌳 Brr Brr Patapim"] },
 
-  "🚽 Toilet Cappucino": {
-    emoji: "🚽",
-    parents: ["🚽 Skibidi Toilet", "☕ Capuccino Assassino"]
-  },
-  "🚽 Skibidi Frulla": {
-    emoji: "🚽",
-    parents: ["🚽 Skibidi Toilet", "✨ Frulli Frulla"]
-  },
-  "🚽 Toilet Bombombini": {
-    emoji: "🚽",
-    parents: ["🚽 Skibidi Toilet", "✈️ Bombombini Gusini"]
-  }
+  "🚽 Toilet Cappucino": { emoji: "🚽", parents: ["🚽 Skibidi Toilet", "☕ Capuccino Assassino"] },
+  "🚽 Skibidi Frulla": { emoji: "🚽", parents: ["🚽 Skibidi Toilet", "✨ Frulli Frulla"] },
+  "🚽 Toilet Bombombini": { emoji: "🚽", parents: ["🚽 Skibidi Toilet", "✈️ Bombombini Gusini"] }
 };
 
-// === Globals ===
-const MAX_DEPTH = 10; // max ancestry depth to avoid loops
+// Settings
+const MAX_DEPTH = 10;
+
 const breadcrumbDiv = document.querySelector(".breadcrumb");
-const currentPetBox = document.getElementById("current-pet-box");
-const petList = document.getElementById("pet-list");
+const petTreeContainer = document.getElementById("pet-tree-container");
 
-let path = []; // stack of selected pets/combos
+let path = [];
 
-// Utility to create clickable element
+// Create clickable span
 function createClickable(text, onClick) {
   const span = document.createElement("span");
   span.textContent = text;
@@ -342,12 +184,12 @@ function createClickable(text, onClick) {
   return span;
 }
 
-// Update breadcrumb UI
+// Update breadcrumb
 function updateBreadcrumb() {
   breadcrumbDiv.innerHTML = "";
   const home = createClickable("Home", () => {
     path = [];
-    showPetList();
+    showPetTree(null);
   });
   breadcrumbDiv.appendChild(home);
 
@@ -356,84 +198,100 @@ function updateBreadcrumb() {
     breadcrumbDiv.appendChild(sep);
     const span = createClickable(node.name, () => {
       path = path.slice(0, i + 1);
-      showPet(node.name);
+      showPetTree(path[i].name);
     });
     breadcrumbDiv.appendChild(span);
   });
 }
 
-// Show main pet list to start from (all base pets + combos)
-function showPetList() {
-  updateBreadcrumb();
-  currentPetBox.innerHTML = "<em>Select a pet or combo below to explore ancestry.</em>";
-  petList.innerHTML = "";
-
-  // Show all keys sorted alphabetically
-  const allPets = Object.keys(comboData).sort();
-
-  allPets.forEach((petName) => {
-    const emoji = comboData[petName].emoji || "❓";
-    const li = document.createElement("li");
-    li.innerHTML = `<span class="emoji">${emoji}</span>${petName}`;
-    li.onclick = () => {
-      path = [{ name: petName }];
-      showPet(petName);
-    };
-    petList.appendChild(li);
-  });
-}
-
-// Show pet/combo details and its parents recursively (ancestry)
-function showPet(name, depth = 0, container = currentPetBox) {
-  if (depth > MAX_DEPTH) {
-    const limitNote = document.createElement("div");
-    limitNote.style.fontStyle = "italic";
-    limitNote.textContent = "(Max ancestry depth reached)";
-    container.appendChild(limitNote);
-    return;
-  }
-
+// Recursive function to create the ancestry tree as nested UL/LI
+function createAncestryTree(name, depth = 0) {
+  const li = document.createElement("li");
   const data = comboData[name];
-  if (!data) {
-    container.textContent = "Unknown pet/combo.";
-    return;
+  const emoji = data?.emoji || "❓";
+  li.innerHTML = `<span class="emoji">${emoji}</span>${name}`;
+  li.onclick = (e) => {
+    e.stopPropagation();
+    // Add to path and update main view
+    path.push({ name });
+    showPetTree(name);
+  };
+  // If has parents and depth not too deep, recurse
+  if (data && data.parents.length === 2 && depth < MAX_DEPTH) {
+    const ul = document.createElement("ul");
+    data.parents.forEach((parentName) => {
+      ul.appendChild(createAncestryTree(parentName, depth + 1));
+    });
+    li.appendChild(ul);
+  } else if (data && data.parents.length === 0) {
+    // Base pet note
+    const note = document.createElement("em");
+    note.style.display = "block";
+    note.style.fontSize = "0.8em";
+    note.style.marginTop = "4px";
+    note.style.color = "#aa88cc";
+    note.textContent = "Base pet (no parents)";
+    li.appendChild(note);
   }
-
-  container.innerHTML = "";
-  const title = document.createElement("div");
-  title.className = "pet-title";
-  title.innerHTML = `<span class="emoji">${data.emoji}</span><strong>${name}</strong>`;
-  container.appendChild(title);
-
-  if (data.parents.length === 0) {
-    const baseNote = document.createElement("div");
-    baseNote.style.fontStyle = "italic";
-    baseNote.textContent = "This is a base/original pet — no parents.";
-    container.appendChild(baseNote);
-    return;
-  }
-
-  const p = document.createElement("p");
-  p.textContent = "Formed by combining these two pets/combos:";
-  container.appendChild(p);
-
-  const ul = document.createElement("ul");
-  data.parents.forEach((parentName) => {
-    const li = document.createElement("li");
-    const emoji = comboData[parentName]?.emoji || "❓";
-    li.innerHTML = `<span class="emoji">${emoji}</span>${parentName}`;
-    li.onclick = () => {
-      path.push({ name: parentName });
-      showPet(parentName);
-      updateBreadcrumb();
-    };
-    ul.appendChild(li);
-  });
-  container.appendChild(ul);
+  return li;
 }
 
-// Initial load
-showPetList();
+// Show the full ancestry tree for a selected pet/combo, or full list if none
+function showPetTree(selectedName) {
+  updateBreadcrumb();
+  petTreeContainer.innerHTML = "";
+  if (!selectedName) {
+    // Show full alphabetized list of all pets/combos as top-level clickable items
+    const ul = document.createElement("ul");
+    Object.keys(comboData)
+      .sort()
+      .forEach((name) => {
+        const li = document.createElement("li");
+        const emoji = comboData[name]?.emoji || "❓";
+        li.innerHTML = `<span class="emoji">${emoji}</span>${name}`;
+        li.onclick = () => {
+          path = [{ name }];
+          showPetTree(name);
+        };
+        ul.appendChild(li);
+      });
+    petTreeContainer.appendChild(ul);
+  } else {
+    // Show selected pet/combo as root and full ancestry expanded below
+    const rootDiv = document.createElement("div");
+    rootDiv.className = "pet-title";
+    const emoji = comboData[selectedName]?.emoji || "❓";
+    rootDiv.innerHTML = `<span class="emoji">${emoji}</span><strong>${selectedName}</strong>`;
+    petTreeContainer.appendChild(rootDiv);
+
+    const ul = document.createElement("ul");
+    const data = comboData[selectedName];
+    if (!data) {
+      const notFound = document.createElement("div");
+      notFound.textContent = "Unknown pet/combo.";
+      petTreeContainer.appendChild(notFound);
+      return;
+    }
+
+    if (data.parents.length === 0) {
+      const baseNote = document.createElement("div");
+      baseNote.style.fontStyle = "italic";
+      baseNote.style.marginTop = "8px";
+      baseNote.textContent = "This is a base/original pet — no parents.";
+      petTreeContainer.appendChild(baseNote);
+      return;
+    }
+
+    data.parents.forEach((parentName) => {
+      ul.appendChild(createAncestryTree(parentName, 1));
+    });
+
+    petTreeContainer.appendChild(ul);
+  }
+}
+
+// Initial load: show full pet/combo list
+showPetTree(null);
 </script>
 </body>
 </html>
