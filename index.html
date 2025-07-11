@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Make a Brainrot Combo Explorer - Limited Combos</title>
+<title>Make a Brainrot Infinite Combo Explorer</title>
 <style>
   body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -46,8 +46,6 @@
   ul {
     list-style-type: none;
     padding-left: 20px;
-    max-height: 400px;
-    overflow-y: auto;
   }
   li {
     margin: 6px 0;
@@ -70,24 +68,21 @@
 </head>
 <body>
 <div class="container">
-  <h1>Make a Brainrot Combo Explorer - Limited Combos</h1>
+  <h1>Make a Brainrot Infinite Combo Explorer</h1>
   <div class="breadcrumb"></div>
   <div id="pet-details"></div>
   <h3>All Pets & Combos (click to explore ancestry):</h3>
   <ul id="pet-list"></ul>
 </div>
 <div class="footer">
-  Rules:<br />
-  - Base pets (level 0) can combine with base pets or combos (level 1 or 2).<br />
-  - Level 1 combos combine only with base pets.<br />
-  - Level 2 combos do not combine further.<br />
-  - Max combo level = 2.<br />
-  Click an item to see its parents.<br />
-  Breadcrumb navigation included.
+  Pets and combos combine pairwise.<br />
+  Every pet or combo can combine with every other (including combos).<br />
+  Shows ancestry for any combo you click.<br />
+  Limited depth for performance.
 </div>
 
 <script>
-// Base pets list
+// Base pets
 const basePets = [
   { name: "Tralalero Tralala", emoji: "🦈" },
   { name: "Bombardiro Crocodilo", emoji: "🐊" },
@@ -107,88 +102,80 @@ const basePets = [
   { name: "Skibidi Toilet", emoji: "🚽" },
 ];
 
-// Master dictionary of all pets and combos
-// Format: { name, emoji, parents: [], level }
+// Master dictionary of combos: key is sorted parent names joined by " + "
 let combos = {};
 
-// Initialize combos with base pets (level 0)
+// Add base pets to combos as "combos" with no parents
 for (const pet of basePets) {
   combos[pet.name] = {
     name: pet.name,
     emoji: pet.emoji,
-    parents: [],
-    level: 0,
+    parents: []
   };
 }
 
-// Helper to create a unique sorted key from two names
+// Helper: create key for two parents sorted alphabetically to avoid duplicates
 function parentsKey(name1, name2) {
   return [name1, name2].sort().join(" + ");
 }
 
-// Combine two pets/combos into a new combo respecting rules
+// Combine two pets/combos into a new combo object
 function combine(a, b) {
-  // Avoid duplicate combos
   const key = parentsKey(a.name, b.name);
-  if (combos[key]) return null;
+  if (combos[key]) return null; // already exists
 
-  // Determine new combo level (max parents level + 1)
-  const comboLevel = Math.max(a.level, b.level) + 1;
-  if (comboLevel > 2) return null; // max level 2 combos only
-
-  // Combination rules:
-  // Level 2 combos can't combine further
-  if (a.level === 2 || b.level === 2) return null;
-
-  // Level 1 combos only combine with level 0 pets
-  if (a.level === 1 && b.level === 1) return null;
-
-  // Allow:
-  // - level 0 + level 0
-  // - level 0 + level 1
-  // - level 1 + level 0
+  // New combo name: join parent names with '+'
+  const newName = ${a.name} + ${b.name};
+  // New emoji: simple concat with plus sign for fun
+  const newEmoji = a.emoji + "➕" + b.emoji;
 
   const newCombo = {
     name: key,
-    emoji: a.emoji + "➕" + b.emoji,
-    parents: [a.name, b.name],
-    level: comboLevel,
+    emoji: newEmoji,
+    parents: [a.name, b.name]
   };
-
   combos[key] = newCombo;
   return newCombo;
 }
 
-// Generate combos with above rules
+// Generate combos up to MAX_DEPTH
+const MAX_DEPTH = 3;
 function generateCombos() {
   let currentLayer = Object.values(combos);
-  for (let depth = 1; depth <= 3; depth++) {
+  for (let depth = 1; depth <= MAX_DEPTH; depth++) {
     let newCombosThisRound = [];
+    // Combine every pair in currentLayer with every other pet/combo in combos
     for (const a of currentLayer) {
       for (const b of Object.values(combos)) {
+        // avoid combining same pair twice and self combo
         if (a.name === b.name) continue;
 
         const key = parentsKey(a.name, b.name);
-        if (combos[key]) continue;
+        if (combos[key]) continue; // skip if exists
 
+        // Combine
         const newCombo = combine(a, b);
-        if (newCombo) newCombosThisRound.push(newCombo);
+        if (newCombo) {
+          newCombosThisRound.push(newCombo);
+        }
       }
     }
-    if (newCombosThisRound.length === 0) break;
+    if (newCombosThisRound.length === 0) break; // no more combos
     currentLayer = newCombosThisRound;
   }
 }
 
+// Run combo generation
 generateCombos();
 
-// UI setup
+// UI Elements
 const breadcrumbDiv = document.querySelector(".breadcrumb");
 const petDetailsDiv = document.getElementById("pet-details");
 const petList = document.getElementById("pet-list");
 
 let path = [];
 
+// Clickable span helper
 function createClickable(text, onClick) {
   const span = document.createElement("span");
   span.textContent = text;
@@ -201,6 +188,7 @@ function createClickable(text, onClick) {
   return span;
 }
 
+// Update breadcrumb UI
 function updateBreadcrumb() {
   breadcrumbDiv.innerHTML = "";
   const home = createClickable("Home", () => {
@@ -220,20 +208,18 @@ function updateBreadcrumb() {
   });
 }
 
+// Show all pets/combos list
 function showPetList() {
   updateBreadcrumb();
   petDetailsDiv.innerHTML = "<em>Select a pet or combo below to explore ancestry.</em>";
   petList.innerHTML = "";
 
-  // Sort by level, then name
-  const allPets = Object.values(combos).sort((a, b) => {
-    if (a.level !== b.level) return a.level - b.level;
-    return a.name.localeCompare(b.name);
-  });
+  // Sort alphabetically, but put base pets first
+  const allPets = Object.values(combos).sort((a, b) => a.name.localeCompare(b.name));
 
   for (const pet of allPets) {
     const li = document.createElement("li");
-    li.innerHTML = `<span class="emoji">${pet.emoji}</span>${pet.name} <small style="color:#888;">(Level ${pet.level})</small>`;
+    li.innerHTML = <span class="emoji">${pet.emoji}</span>${pet.name};
     li.onclick = () => {
       path = [{ name: pet.name }];
       showPetDetails(pet.name);
@@ -242,6 +228,7 @@ function showPetList() {
   }
 }
 
+// Show details and parents of a pet/combo recursively
 function showPetDetails(name) {
   updateBreadcrumb();
 
@@ -254,7 +241,7 @@ function showPetDetails(name) {
   petDetailsDiv.innerHTML = "";
   const title = document.createElement("div");
   title.className = "pet-title";
-  title.innerHTML = `<span class="emoji">${pet.emoji}</span><strong>${pet.name}</strong>`;
+  title.innerHTML = <span class="emoji">${pet.emoji}</span><strong>${pet.name}</strong>;
   petDetailsDiv.appendChild(title);
 
   if (pet.parents.length === 0) {
@@ -265,6 +252,7 @@ function showPetDetails(name) {
     return;
   }
 
+  // Show parents clickable
   const parentsTitle = document.createElement("div");
   parentsTitle.textContent = "Formed by combining these two parents:";
   parentsTitle.style.marginTop = "10px";
@@ -276,7 +264,7 @@ function showPetDetails(name) {
     const parent = combos[parentName];
     if (!parent) return;
     const li = document.createElement("li");
-    li.innerHTML = `<span class="emoji">${parent.emoji}</span>${parent.name} <small style="color:#888;">(Level ${parent.level})</small>`;
+    li.innerHTML = <span class="emoji">${parent.emoji}</span>${parent.name};
     li.onclick = () => {
       path.push({ name: parent.name });
       showPetDetails(parent.name);
@@ -288,7 +276,6 @@ function showPetDetails(name) {
 
 // Initial display
 showPetList();
-
 </script>
 </body>
 </html>
