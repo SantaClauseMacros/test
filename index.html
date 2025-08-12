@@ -1,439 +1,287 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Make a Brainrot Combo Ancestry Explorer</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>99 Nights in the Forest - Role Selector</title>
 <style>
+  :root {
+    --bg: #0f1720;
+    --card: #0b1220;
+    --accent1: #ff9f1c;
+    --accent2: #2dd4bf;
+    --text: #e6eef8;
+    --muted: #98a0b3;
+  }
   body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #121212;
-    color: #eee;
-    margin: 20px;
+    margin: 0;
+    font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 900px;
+    margin: 28px auto;
+    padding: 26px;
   }
   h1 {
+    font-size: 28px;
+    margin: 0 0 12px;
     text-align: center;
-    color: #ff55aa;
+    color: var(--accent1);
   }
-  .breadcrumb {
-    margin-bottom: 15px;
+  .subtitle {
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 18px;
   }
-  .breadcrumb span {
-    cursor: pointer;
-    color: #ff77cc;
-    text-decoration: underline;
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
   }
-  .breadcrumb span:hover {
-    color: #ff33aa;
-  }
-  .container {
-    max-width: 650px;
-    margin: auto;
-    background: #1b1b1b;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 0 25px #ff33aa88;
-  }
-  .pet-box {
-    background: #2a2a2a;
-    border-radius: 12px;
+  .card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border: 1px solid rgba(255,255,255,0.03);
     padding: 18px;
-    margin-bottom: 20px;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(2,6,23,0.6);
   }
-  .pet-title {
-    font-size: 1.5em;
-    margin-bottom: 10px;
+  .role-head {
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
   }
-  .emoji {
-    font-size: 1.7em;
-    margin-right: 12px;
-    vertical-align: middle;
+  .role-head .emoji {
+    font-size: 24px;
   }
-  ul {
-    list-style-type: none;
-    padding-left: 0;
+  .role-head .title {
+    font-size: 18px;
   }
-  li {
-    background: #330022;
-    margin: 8px 0;
-    padding: 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1.1em;
-    transition: background-color 0.3s;
+  .tasks {
+    margin: 8px 0 0;
+    padding-left: 18px;
+    line-height: 1.6;
+    color: var(--text);
   }
-  li:hover {
-    background: #ff33aaaa;
-    color: #222;
+  .task {
+    margin: 6px 0;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .bullet {
+    width: 28px;
+    flex-shrink: 0;
+    text-align: center;
+    font-size: 18px;
+  }
+  .note {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 12px;
   }
   .footer {
+    margin-top: 18px;
     text-align: center;
-    margin-top: 40px;
-    font-size: 0.9em;
-    color: #777;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .button-group {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin: 32px 0 28px;
+  }
+  button {
+    background: var(--accent1);
+    border: none;
+    padding: 14px 26px;
+    border-radius: 14px;
+    color: var(--text);
+    font-size: 18px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: background 0.3s ease;
+  }
+  button:hover {
+    background: #ffb845;
+  }
+  .hidden {
+    display: none;
+  }
+  /* single column on small screens */
+  @media (max-width: 720px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+    .button-group {
+      flex-direction: column;
+      gap: 16px;
+    }
+    button {
+      width: 100%;
+    }
   }
 </style>
 </head>
 <body>
-<div class="container">
-  <h1>Make a Brainrot Combo Ancestry Explorer</h1>
-  <div class="breadcrumb"></div>
-  <div class="pet-box" id="current-pet-box"></div>
-  <h3>Choose a pet/combo to explore ancestry:</h3>
-  <ul id="pet-list"></ul>
-</div>
-<div class="footer">
-  Made for <strong>Make a Brainrot</strong> combo exploration.<br />
-  Click pets to explore which two pets/combos combined to form it.<br />
-  Use breadcrumb to navigate back.<br />
-  Originals have no parents (base pets).
-</div>
+  <div class="wrap">
+
+    <h1>99 Nights in the Forest — Role Selector</h1>
+    <div class="subtitle" id="subtitle">How many players are you playing with?</div>
+
+    <!-- Player Count Selection -->
+    <div id="playerSelect" class="button-group">
+      <button data-players="2">2 Players</button>
+      <button data-players="3">3 Players</button>
+    </div>
+
+    <!-- Role Selection for 2 Players -->
+    <div id="roles2" class="hidden">
+      <h2 style="color: var(--accent2); margin-bottom: 8px;">Select Your Role</h2>
+      <div class="grid">
+        <div class="card role-choice" data-role="Base Builder / Keeper + Lumberjack / Fire Keeper">
+          <div class="role-head"><div class="emoji">🏠🩹</div><div class="title">Base Builder / Keeper + Lumberjack / Fire Keeper</div></div>
+          <div class="tasks">
+            <div class="task"><div class="bullet">📦</div><div>makes sure base is organized</div></div>
+            <div class="task"><div class="bullet">🛏</div><div>makes sure you have all beds</div></div>
+            <div class="task"><div class="bullet">🧰</div><div>makes sure you have all the things you need within a base</div></div>
+            <div class="task"><div class="bullet">🩹</div><div>makes sure base has bandages & saves people who die</div></div>
+            <div class="task"><div class="bullet">🌳</div><div>cuts down MANY trees</div></div>
+            <div class="task"><div class="bullet">🌱</div><div>saves the saplings</div></div>
+            <div class="task"><div class="bullet">🌲</div><div>in charge of making a tree farm and cutting it down regularly</div></div>
+            <div class="task"><div class="bullet">🔥</div><div>makes sure the fire doesn't run out</div></div>
+            <div class="task"><div class="bullet">🪣</div><div>gets oil & coal etc. to fuel fire</div></div>
+          </div>
+        </div>
+        <div class="card role-choice" data-role="Food Supplier / Cook + Scrap & Loot Finder / Explorer">
+          <div class="role-head"><div class="emoji">🍲🗺</div><div class="title">Food Supplier / Cook + Scrap & Loot Finder / Explorer</div></div>
+          <div class="tasks">
+            <div class="task"><div class="bullet">🍽</div><div>makes sure everyone is fed</div></div>
+            <div class="task"><div class="bullet">🥘</div><div>in charge of crockpot & farm plots</div></div>
+            <div class="task"><div class="bullet">🍛</div><div>makes stews & keeps food at base</div></div>
+            <div class="task"><div class="bullet">🐇</div><div>kills rabbits & wolves for food</div></div>
+            <div class="task"><div class="bullet">🐻</div><div>makes sure people get pelts etc. for ammo & weapons</div></div>
+            <div class="task"><div class="bullet">🛠</div><div>finds scrap for the bench so the base keeper can maintain base and get things that everyone needs</div></div>
+            <div class="task"><div class="bullet">⚒</div><div>makes sure everyone has the appropriate weapons & tools for their role (e.g. wood person has great axe / chainsaw etc.)</div></div>
+            <div class="task"><div class="bullet">👶</div><div>finds all of the kids to make days go faster</div></div>
+            <div class="task"><div class="bullet">📦</div><div>also finds loot etc. & scraps & pelts while exploring; explores stronghold etc.</div></div>
+            <div class="task"><div class="bullet">🗡</div><div>fights cultists at base</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Role Selection for 3 Players -->
+    <div id="roles3" class="hidden">
+      <h2 style="color: var(--accent2); margin-bottom: 8px;">Select Your Role</h2>
+      <div class="grid">
+        <div class="card role-choice" data-role="Base Builder / Keeper">
+          <div class="role-head"><div class="emoji">🏠🩹</div><div class="title">Base Builder / Keeper</div></div>
+          <div class="tasks">
+            <div class="task"><div class="bullet">📦</div><div>makes sure base is organized</div></div>
+            <div class="task"><div class="bullet">🛏</div><div>makes sure you have all beds</div></div>
+            <div class="task"><div class="bullet">🧰</div><div>makes sure you have all the things you need within a base</div></div>
+            <div class="task"><div class="bullet">🩹</div><div>makes sure base has bandages & saves people who die</div></div>
+          </div>
+        </div>
+        <div class="card role-choice" data-role="Food Supplier / Cook + Lumberjack / Fire Keeper">
+          <div class="role-head"><div class="emoji">🍲🔥</div><div class="title">Food Supplier / Cook + Lumberjack / Fire Keeper</div></div>
+          <div class="tasks">
+            <div class="task"><div class="bullet">🍽</div><div>makes sure everyone is fed</div></div>
+            <div class="task"><div class="bullet">🥘</div><div>in charge of crockpot & farm plots</div></div>
+            <div class="task"><div class="bullet">🍛</div><div>makes stews & keeps food at base</div></div>
+            <div class="task"><div class="bullet">🐇</div><div>kills rabbits & wolves for food</div></div>
+            <div class="task"><div class="bullet">🌳</div><div>cuts down MANY trees</div></div>
+            <div class="task"><div class="bullet">🌱</div><div>saves the saplings</div></div>
+            <div class="task"><div class="bullet">🌲</div><div>in charge of making a tree farm and cutting it down regularly</div></div>
+            <div class="task"><div class="bullet">🔥</div><div>makes sure the fire doesn't run out</div></div>
+            <div class="task"><div class="bullet">🪣</div><div>gets oil & coal etc. to fuel fire</div></div>
+          </div>
+        </div>
+        <div class="card role-choice" data-role="Scrap & Loot Finder">
+          <div class="role-head"><div class="emoji">🛠🗡</div><div class="title">Scrap & Loot Finder</div></div>
+          <div class="tasks">
+            <div class="task"><div class="bullet">🐻</div><div>makes sure people get pelts etc. for ammo & weapons</div></div>
+            <div class="task"><div class="bullet">🛠</div><div>finds scrap for the bench so the base keeper can maintain base and get things that everyone needs</div></div>
+            <div class="task"><div class="bullet">⚒</div><div>makes sure everyone has the appropriate weapons & tools for their role (e.g. wood person has great axe / chainsaw etc.)</div></div>
+          </div>
+        </div>
+        <div class="card role-choice" data-role="Explorer">
+          <div class="role-head"><div class="emoji">🗺🗡</div><div class="title">Explorer</div></div>
+          <div class="tasks">
+            <div class="task"><div class="bullet">👶</div><div>finds all of the kids to make days go faster</div></div>
+            <div class="task"><div class="bullet">📦</div><div>also finds loot etc. & scraps & pelts while exploring; explores stronghold etc.</div></div>
+            <div class="task"><div class="bullet">🗡</div><div>fights cultists at base</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">Reload the page to return here or change selection</div>
+  </div>
 
 <script>
-// === Data with parents: comboName => { emoji, parents: [parent1, parent2] }
-// Originals have empty parents array
-const comboData = {
-  // Originals (base pets)
-  "🦈 Tralalero Tralala": { emoji: "🦈", parents: [] },
-  "🐊 Bombardiro Crocodilo": { emoji: "🐊", parents: [] },
-  "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur": { emoji: "🥁", parents: [] },
-  "🌵 Lirilì Larilà": { emoji: "🌵", parents: [] },
-  "🐸 Boneca Ambalabu": { emoji: "🐸", parents: [] },
-  "🌳 Brr Brr Patapim": { emoji: "🌳", parents: [] },
-  "🍌 Chimpanzini Bananini": { emoji: "🍌", parents: [] },
-  "✈️ Bombombini Gusini": { emoji: "✈️", parents: [] },
-  "☕ Capuccino Assassino": { emoji: "☕", parents: [] },
-  "🐻 Trippi Troppi": { emoji: "🐻", parents: [] },
-  "🐪 Frigo Camelo": { emoji: "🐪", parents: [] },
-  "🪐 La Vaca Saturno Saturnita": { emoji: "🪐", parents: [] },
-  "💃 Ballerina Cappucina": { emoji: "💃", parents: [] },
-  "🍊 U Din Din Din Din Dun Ma Din Din Din Dun": { emoji: "🍊", parents: [] },
-  "✨ Frulli Frulla": { emoji: "✨", parents: [] },
-  "🚽 Skibidi Toilet": { emoji: "🚽", parents: [] },
+  const playerSelect = document.getElementById('playerSelect');
+  const roles2 = document.getElementById('roles2');
+  const roles3 = document.getElementById('roles3');
+  const subtitle = document.getElementById('subtitle');
 
-  // Combos with parents:
-  "🦈 Tralalero Bombombini": {
-    emoji: "🦈",
-    parents: ["🦈 Tralalero Tralala", "✈️ Bombombini Gusini"]
-  },
-  "🦈 Tralala Cappucina": {
-    emoji: "🦈",
-    parents: ["🦈 Tralalero Tralala", "☕ Capuccino Assassino"]
-  },
-  "🦈 Trippi Tralala": {
-    emoji: "🦈",
-    parents: ["🦈 Tralalero Tralala", "🐻 Trippi Troppi"]
-  },
+  // Load saved selection
+  const savedPlayers = localStorage.getItem('players');
+  const savedRole = localStorage.getItem('role');
 
-  "🐪 Crocodilo Camelo": {
-    emoji: "🐪",
-    parents: ["🐊 Bombardiro Crocodilo", "🐪 Frigo Camelo"]
-  },
-  "🐊 Bombardiro Patapim": {
-    emoji: "🐊",
-    parents: ["🐊 Bombardiro Crocodilo", "🌳 Brr Brr Patapim"]
-  },
-  "✨ Frulla Crocodiro": {
-    emoji: "✨",
-    parents: ["🐊 Bombardiro Crocodilo", "✨ Frulli Frulla"]
-  },
-
-  "🥁 Tung Sahur Bananini": {
-    emoji: "🥁",
-    parents: ["🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur", "🍌 Chimpanzini Bananini"]
-  },
-  "🚽 Tung Skibidi Bomb": {
-    emoji: "🚽",
-    parents: ["🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur", "🚽 Skibidi Toilet"]
-  },
-  "🥁 Tung Trippi Larilà": {
-    emoji: "🥁",
-    parents: ["🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur", "🐻 Trippi Troppi"]
-  },
-
-  "🌵 Larilà Saturnita": {
-    emoji: "🌵",
-    parents: ["🌵 Lirilì Larilà", "🪐 La Vaca Saturno Saturnita"]
-  },
-  "🌵 Lirilì Ambalabu": {
-    emoji: "🌵",
-    parents: ["🌵 Lirilì Larilà", "🐸 Boneca Ambalabu"]
-  },
-  "🌵 Lirilì Cappucino": {
-    emoji: "🌵",
-    parents: ["🌵 Lirilì Larilà", "☕ Capuccino Assassino"]
-  },
-
-  "🐸 Ambalabu Trippi": {
-    emoji: "🐸",
-    parents: ["🐸 Boneca Ambalabu", "🐻 Trippi Troppi"]
-  },
-  "🐸 Boneca Ballerina": {
-    emoji: "🐸",
-    parents: ["🐸 Boneca Ambalabu", "💃 Ballerina Cappucina"]
-  },
-  "🐸 Ambalabu Frulla": {
-    emoji: "🐸",
-    parents: ["🐸 Boneca Ambalabu", "✨ Frulli Frulla"]
-  },
-
-  "🐪 Patapim Camelo": {
-    emoji: "🐪",
-    parents: ["🌳 Brr Brr Patapim", "🐪 Frigo Camelo"]
-  },
-  "🌳 Brr Brr Gusini": {
-    emoji: "🌳",
-    parents: ["🌳 Brr Brr Patapim", "✈️ Bombombini Gusini"]
-  },
-  "🌳 Brr Cappucino": {
-    emoji: "🌳",
-    parents: ["🌳 Brr Brr Patapim", "☕ Capuccino Assassino"]
-  },
-
-  "🍌 Bananini Sahur": {
-    emoji: "🍌",
-    parents: ["🍌 Chimpanzini Bananini", "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur"]
-  },
-  "🍌 Chimpanzini Skibidi": {
-    emoji: "🍌",
-    parents: ["🍌 Chimpanzini Bananini", "🚽 Skibidi Toilet"]
-  },
-  "🍌 Bananini Saturno": {
-    emoji: "🍌",
-    parents: ["🍌 Chimpanzini Bananini", "🪐 La Vaca Saturno Saturnita"]
-  },
-
-  "✈️ Bombombini Frulla": {
-    emoji: "✈️",
-    parents: ["✈️ Bombombini Gusini", "✨ Frulli Frulla"]
-  },
-  "🐊 Gusini Crocodilo": {
-    emoji: "🐊",
-    parents: ["✈️ Bombombini Gusini", "🐊 Bombardiro Crocodilo"]
-  },
-  "✈️ Bombombini Cappucina": {
-    emoji: "✈️",
-    parents: ["✈️ Bombombini Gusini", "☕ Capuccino Assassino"]
-  },
-
-  "☕ Assassino Trippi": {
-    emoji: "☕",
-    parents: ["☕ Capuccino Assassino", "🐻 Trippi Troppi"]
-  },
-  "☕ Capuccino Saturnita": {
-    emoji: "☕",
-    parents: ["☕ Capuccino Assassino", "🪐 La Vaca Saturno Saturnita"]
-  },
-  "☕ Cappucina Lirilì": {
-    emoji: "☕",
-    parents: ["☕ Capuccino Assassino", "🌵 Lirilì Larilà"]
-  },
-
-  "🐻 Troppi Bananini": {
-    emoji: "🐻",
-    parents: ["🐻 Trippi Troppi", "🍌 Chimpanzini Bananini"]
-  },
-  "🐻 Trippi Frulla": {
-    emoji: "🐻",
-    parents: ["🐻 Trippi Troppi", "✨ Frulli Frulla"]
-  },
-  "🐻 Trippi Sahur": {
-    emoji: "🐻",
-    parents: ["🐻 Trippi Troppi", "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur"]
-  },
-
-  "🐪 Frigo Crocodilo": {
-    emoji: "🐪",
-    parents: ["🐪 Frigo Camelo", "🐊 Bombardiro Crocodilo"]
-  },
-  "🐪 Camelo Tralala": {
-    emoji: "🐪",
-    parents: ["🐪 Frigo Camelo", "🦈 Tralalero Tralala"]
-  },
-  "🐪 Frigo Toilet": {
-    emoji: "🐪",
-    parents: ["🐪 Frigo Camelo", "🚽 Skibidi Toilet"]
-  },
-
-  "🪐 Saturnita Bombardiro": {
-    emoji: "🪐",
-    parents: ["🪐 La Vaca Saturno Saturnita", "🐊 Bombardiro Crocodilo"]
-  },
-  "🪐 Vaca Cappucino": {
-    emoji: "🪐",
-    parents: ["🪐 La Vaca Saturno Saturnita", "☕ Capuccino Assassino"]
-  },
-  "🪐 Saturno Larilà": {
-    emoji: "🪐",
-    parents: ["🪐 La Vaca Saturno Saturnita", "🌵 Lirilì Larilà"]
-  },
-
-  "💃 Cappucina Trippi": {
-    emoji: "💃",
-    parents: ["💃 Ballerina Cappucina", "🐻 Trippi Troppi"]
-  },
-  "💃 Ballerina Banana": {
-    emoji: "💃",
-    parents: ["💃 Ballerina Cappucina", "🍌 Chimpanzini Bananini"]
-  },
-  "💃 Cappucina Sahur": {
-    emoji: "💃",
-    parents: ["💃 Ballerina Cappucina", "🥁 Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur"]
-  },
-
-  "🍊 Din Din Frulla": {
-    emoji: "🍊",
-    parents: ["🍊 U Din Din Din Din Dun Ma Din Din Din Dun", "✨ Frulli Frulla"]
-  },
-  "🍊 Din Dun Camelo": {
-    emoji: "🍊",
-    parents: ["🍊 U Din Din Din Din Dun Ma Din Din Din Dun", "🐪 Frigo Camelo"]
-  },
-  "🍊 Din Tralalero": {
-    emoji: "🍊",
-    parents: ["🍊 U Din Din Din Din Dun Ma Din Din Din Dun", "🦈 Tralalero Tralala"]
-  },
-
-  "✨ Frulla Ambalabu": {
-    emoji: "✨",
-    parents: ["✨ Frulli Frulla", "🐸 Boneca Ambalabu"]
-  },
-  "✨ Frulli Gusini": {
-    emoji: "✨",
-    parents: ["✨ Frulli Frulla", "✈️ Bombombini Gusini"]
-  },
-  "✨ Frulla Brr Brr": {
-    emoji: "✨",
-    parents: ["✨ Frulli Frulla", "🌳 Brr Brr Patapim"]
-  },
-
-  "🚽 Toilet Cappucino": {
-    emoji: "🚽",
-    parents: ["🚽 Skibidi Toilet", "☕ Capuccino Assassino"]
-  },
-  "🚽 Skibidi Frulla": {
-    emoji: "🚽",
-    parents: ["🚽 Skibidi Toilet", "✨ Frulli Frulla"]
-  },
-  "🚽 Toilet Bombombini": {
-    emoji: "🚽",
-    parents: ["🚽 Skibidi Toilet", "✈️ Bombombini Gusini"]
+  function showPlayerSelect() {
+    playerSelect.classList.remove('hidden');
+    roles2.classList.add('hidden');
+    roles3.classList.add('hidden');
+    subtitle.textContent = 'How many players are you playing with?';
   }
-};
 
-// === Globals ===
-const MAX_DEPTH = 10; // max ancestry depth to avoid loops
-const breadcrumbDiv = document.querySelector(".breadcrumb");
-const currentPetBox = document.getElementById("current-pet-box");
-const petList = document.getElementById("pet-list");
+  function showRoles(count) {
+    playerSelect.classList.add('hidden');
+    if (count === '2') {
+      roles2.classList.remove('hidden');
+      roles3.classList.add('hidden');
+      subtitle.textContent = 'Select your role (2 Players)';
+    } else if (count === '3') {
+      roles3.classList.remove('hidden');
+      roles2.classList.add('hidden');
+      subtitle.textContent = 'Select your role (3 Players)';
+    }
+  }
 
-let path = []; // stack of selected pets/combos
+  // Restore previous selection if exists
+  if (savedPlayers) {
+    showRoles(savedPlayers);
+    if (savedRole) {
+      alert(`You previously selected role: ${savedRole}`);
+    }
+  }
 
-// Utility to create clickable element
-function createClickable(text, onClick) {
-  const span = document.createElement("span");
-  span.textContent = text;
-  span.style.cursor = "pointer";
-  span.style.color = "#ff77cc";
-  span.style.textDecoration = "underline";
-  span.onclick = onClick;
-  span.onmouseenter = () => (span.style.color = "#ff33aa");
-  span.onmouseleave = () => (span.style.color = "#ff77cc");
-  return span;
-}
-
-// Update breadcrumb UI
-function updateBreadcrumb() {
-  breadcrumbDiv.innerHTML = "";
-  const home = createClickable("Home", () => {
-    path = [];
-    showPetList();
-  });
-  breadcrumbDiv.appendChild(home);
-
-  path.forEach((node, i) => {
-    const sep = document.createTextNode(" > ");
-    breadcrumbDiv.appendChild(sep);
-    const span = createClickable(node.name, () => {
-      path = path.slice(0, i + 1);
-      showPet(node.name);
+  // Player count buttons
+  playerSelect.querySelectorAll('button').forEach(button => {
+    button.addEventListener('click', () => {
+      const count = button.getAttribute('data-players');
+      localStorage.setItem('players', count);
+      localStorage.removeItem('role'); // Clear old role when new player count chosen
+      showRoles(count);
     });
-    breadcrumbDiv.appendChild(span);
   });
-}
 
-// Show main pet list to start from (all base pets + combos)
-function showPetList() {
-  updateBreadcrumb();
-  currentPetBox.innerHTML = "<em>Select a pet or combo below to explore ancestry.</em>";
-  petList.innerHTML = "";
-
-  // Show all keys sorted alphabetically
-  const allPets = Object.keys(comboData).sort();
-
-  allPets.forEach((petName) => {
-    const emoji = comboData[petName].emoji || "❓";
-    const li = document.createElement("li");
-    li.innerHTML = `<span class="emoji">${emoji}</span>${petName}`;
-    li.onclick = () => {
-      path = [{ name: petName }];
-      showPet(petName);
-    };
-    petList.appendChild(li);
+  // Role selection
+  document.querySelectorAll('.role-choice').forEach(card => {
+    card.addEventListener('click', () => {
+      const role = card.getAttribute('data-role');
+      localStorage.setItem('role', role);
+      alert(`You selected role:\n\n${role}\n\nReload to change.`);
+    });
   });
-}
-
-// Show pet/combo details and its parents recursively (ancestry)
-function showPet(name, depth = 0, container = currentPetBox) {
-  if (depth > MAX_DEPTH) {
-    const limitNote = document.createElement("div");
-    limitNote.style.fontStyle = "italic";
-    limitNote.textContent = "(Max ancestry depth reached)";
-    container.appendChild(limitNote);
-    return;
-  }
-
-  const data = comboData[name];
-  if (!data) {
-    container.textContent = "Unknown pet/combo.";
-    return;
-  }
-
-  container.innerHTML = "";
-  const title = document.createElement("div");
-  title.className = "pet-title";
-  title.innerHTML = `<span class="emoji">${data.emoji}</span><strong>${name}</strong>`;
-  container.appendChild(title);
-
-  if (data.parents.length === 0) {
-    const baseNote = document.createElement("div");
-    baseNote.style.fontStyle = "italic";
-    baseNote.textContent = "This is a base/original pet — no parents.";
-    container.appendChild(baseNote);
-    return;
-  }
-
-  const p = document.createElement("p");
-  p.textContent = "Formed by combining these two pets/combos:";
-  container.appendChild(p);
-
-  const ul = document.createElement("ul");
-  data.parents.forEach((parentName) => {
-    const li = document.createElement("li");
-    const emoji = comboData[parentName]?.emoji || "❓";
-    li.innerHTML = `<span class="emoji">${emoji}</span>${parentName}`;
-    li.onclick = () => {
-      path.push({ name: parentName });
-      showPet(parentName);
-      updateBreadcrumb();
-    };
-    ul.appendChild(li);
-  });
-  container.appendChild(ul);
-}
-
-// Initial load
-showPetList();
 </script>
+
 </body>
 </html>
