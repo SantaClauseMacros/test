@@ -1,287 +1,204 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>99 Nights in the Forest - Role Selector</title>
-<style>
-  :root {
-    --bg: #0f1720;
-    --card: #0b1220;
-    --accent1: #ff9f1c;
-    --accent2: #2dd4bf;
-    --text: #e6eef8;
-    --muted: #98a0b3;
-  }
-  body {
-    margin: 0;
-    font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    -webkit-font-smoothing: antialiased;
-  }
-  .wrap {
-    max-width: 900px;
-    margin: 28px auto;
-    padding: 26px;
-  }
-  h1 {
-    font-size: 28px;
-    margin: 0 0 12px;
-    text-align: center;
-    color: var(--accent1);
-  }
-  .subtitle {
-    color: var(--muted);
-    text-align: center;
-    margin-bottom: 18px;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-  }
-  .card {
-    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-    border: 1px solid rgba(255,255,255,0.03);
-    padding: 18px;
-    border-radius: 12px;
-    box-shadow: 0 6px 18px rgba(2,6,23,0.6);
-  }
-  .role-head {
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
-  }
-  .role-head .emoji {
-    font-size: 24px;
-  }
-  .role-head .title {
-    font-size: 18px;
-  }
-  .tasks {
-    margin: 8px 0 0;
-    padding-left: 18px;
-    line-height: 1.6;
-    color: var(--text);
-  }
-  .task {
-    margin: 6px 0;
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-  }
-  .bullet {
-    width: 28px;
-    flex-shrink: 0;
-    text-align: center;
-    font-size: 18px;
-  }
-  .note {
-    color: var(--muted);
-    font-size: 13px;
-    margin-top: 12px;
-  }
-  .footer {
-    margin-top: 18px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 13px;
-  }
-  .button-group {
-    display: flex;
-    justify-content: center;
-    gap: 24px;
-    margin: 32px 0 28px;
-  }
-  button {
-    background: var(--accent1);
-    border: none;
-    padding: 14px 26px;
-    border-radius: 14px;
-    color: var(--text);
-    font-size: 18px;
-    cursor: pointer;
-    font-weight: 700;
-    transition: background 0.3s ease;
-  }
-  button:hover {
-    background: #ffb845;
-  }
-  .hidden {
-    display: none;
-  }
-  /* single column on small screens */
-  @media (max-width: 720px) {
-    .grid {
-      grid-template-columns: 1fr;
-    }
-    .button-group {
-      flex-direction: column;
-      gap: 16px;
-    }
-    button {
-      width: 100%;
-    }
-  }
-</style>
-</head>
-<body>
-  <div class="wrap">
+const fileInput = document.getElementById('fileInput');
+const previewGrid = document.getElementById('previewGrid');
+const downloadAll = document.getElementById('downloadAll');
+const outlineWidthInput = document.getElementById('outlineWidth');
+const outlineColorInput = document.getElementById('outlineColor');
+const edgeSmoothingInput = document.getElementById('edgeSmoothing');
 
-    <h1>99 Nights in the Forest — Role Selector</h1>
-    <div class="subtitle" id="subtitle">How many players are you playing with?</div>
+let items = [];
 
-    <!-- Player Count Selection -->
-    <div id="playerSelect" class="button-group">
-      <button data-players="2">2 Players</button>
-      <button data-players="3">3 Players</button>
-    </div>
+fileInput.addEventListener('change', () => {
+  items = [];
+  previewGrid.innerHTML = '';
 
-    <!-- Role Selection for 2 Players -->
-    <div id="roles2" class="hidden">
-      <h2 style="color: var(--accent2); margin-bottom: 8px;">Select Your Role</h2>
-      <div class="grid">
-        <div class="card role-choice" data-role="Base Builder / Keeper + Lumberjack / Fire Keeper">
-          <div class="role-head"><div class="emoji">🏠🩹</div><div class="title">Base Builder / Keeper + Lumberjack / Fire Keeper</div></div>
-          <div class="tasks">
-            <div class="task"><div class="bullet">📦</div><div>makes sure base is organized</div></div>
-            <div class="task"><div class="bullet">🛏</div><div>makes sure you have all beds</div></div>
-            <div class="task"><div class="bullet">🧰</div><div>makes sure you have all the things you need within a base</div></div>
-            <div class="task"><div class="bullet">🩹</div><div>makes sure base has bandages & saves people who die</div></div>
-            <div class="task"><div class="bullet">🌳</div><div>cuts down MANY trees</div></div>
-            <div class="task"><div class="bullet">🌱</div><div>saves the saplings</div></div>
-            <div class="task"><div class="bullet">🌲</div><div>in charge of making a tree farm and cutting it down regularly</div></div>
-            <div class="task"><div class="bullet">🔥</div><div>makes sure the fire doesn't run out</div></div>
-            <div class="task"><div class="bullet">🪣</div><div>gets oil & coal etc. to fuel fire</div></div>
-          </div>
-        </div>
-        <div class="card role-choice" data-role="Food Supplier / Cook + Scrap & Loot Finder / Explorer">
-          <div class="role-head"><div class="emoji">🍲🗺</div><div class="title">Food Supplier / Cook + Scrap & Loot Finder / Explorer</div></div>
-          <div class="tasks">
-            <div class="task"><div class="bullet">🍽</div><div>makes sure everyone is fed</div></div>
-            <div class="task"><div class="bullet">🥘</div><div>in charge of crockpot & farm plots</div></div>
-            <div class="task"><div class="bullet">🍛</div><div>makes stews & keeps food at base</div></div>
-            <div class="task"><div class="bullet">🐇</div><div>kills rabbits & wolves for food</div></div>
-            <div class="task"><div class="bullet">🐻</div><div>makes sure people get pelts etc. for ammo & weapons</div></div>
-            <div class="task"><div class="bullet">🛠</div><div>finds scrap for the bench so the base keeper can maintain base and get things that everyone needs</div></div>
-            <div class="task"><div class="bullet">⚒</div><div>makes sure everyone has the appropriate weapons & tools for their role (e.g. wood person has great axe / chainsaw etc.)</div></div>
-            <div class="task"><div class="bullet">👶</div><div>finds all of the kids to make days go faster</div></div>
-            <div class="task"><div class="bullet">📦</div><div>also finds loot etc. & scraps & pelts while exploring; explores stronghold etc.</div></div>
-            <div class="task"><div class="bullet">🗡</div><div>fights cultists at base</div></div>
-          </div>
-        </div>
-      </div>
-    </div>
+  Array.from(fileInput.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        renderOutline(img, canvas);
+        items.push({ name: file.name.replace(/\.[^/.]+$/, ''), img, canvas });
 
-    <!-- Role Selection for 3 Players -->
-    <div id="roles3" class="hidden">
-      <h2 style="color: var(--accent2); margin-bottom: 8px;">Select Your Role</h2>
-      <div class="grid">
-        <div class="card role-choice" data-role="Base Builder / Keeper">
-          <div class="role-head"><div class="emoji">🏠🩹</div><div class="title">Base Builder / Keeper</div></div>
-          <div class="tasks">
-            <div class="task"><div class="bullet">📦</div><div>makes sure base is organized</div></div>
-            <div class="task"><div class="bullet">🛏</div><div>makes sure you have all beds</div></div>
-            <div class="task"><div class="bullet">🧰</div><div>makes sure you have all the things you need within a base</div></div>
-            <div class="task"><div class="bullet">🩹</div><div>makes sure base has bandages & saves people who die</div></div>
-          </div>
-        </div>
-        <div class="card role-choice" data-role="Food Supplier / Cook + Lumberjack / Fire Keeper">
-          <div class="role-head"><div class="emoji">🍲🔥</div><div class="title">Food Supplier / Cook + Lumberjack / Fire Keeper</div></div>
-          <div class="tasks">
-            <div class="task"><div class="bullet">🍽</div><div>makes sure everyone is fed</div></div>
-            <div class="task"><div class="bullet">🥘</div><div>in charge of crockpot & farm plots</div></div>
-            <div class="task"><div class="bullet">🍛</div><div>makes stews & keeps food at base</div></div>
-            <div class="task"><div class="bullet">🐇</div><div>kills rabbits & wolves for food</div></div>
-            <div class="task"><div class="bullet">🌳</div><div>cuts down MANY trees</div></div>
-            <div class="task"><div class="bullet">🌱</div><div>saves the saplings</div></div>
-            <div class="task"><div class="bullet">🌲</div><div>in charge of making a tree farm and cutting it down regularly</div></div>
-            <div class="task"><div class="bullet">🔥</div><div>makes sure the fire doesn't run out</div></div>
-            <div class="task"><div class="bullet">🪣</div><div>gets oil & coal etc. to fuel fire</div></div>
-          </div>
-        </div>
-        <div class="card role-choice" data-role="Scrap & Loot Finder">
-          <div class="role-head"><div class="emoji">🛠🗡</div><div class="title">Scrap & Loot Finder</div></div>
-          <div class="tasks">
-            <div class="task"><div class="bullet">🐻</div><div>makes sure people get pelts etc. for ammo & weapons</div></div>
-            <div class="task"><div class="bullet">🛠</div><div>finds scrap for the bench so the base keeper can maintain base and get things that everyone needs</div></div>
-            <div class="task"><div class="bullet">⚒</div><div>makes sure everyone has the appropriate weapons & tools for their role (e.g. wood person has great axe / chainsaw etc.)</div></div>
-          </div>
-        </div>
-        <div class="card role-choice" data-role="Explorer">
-          <div class="role-head"><div class="emoji">🗺🗡</div><div class="title">Explorer</div></div>
-          <div class="tasks">
-            <div class="task"><div class="bullet">👶</div><div>finds all of the kids to make days go faster</div></div>
-            <div class="task"><div class="bullet">📦</div><div>also finds loot etc. & scraps & pelts while exploring; explores stronghold etc.</div></div>
-            <div class="task"><div class="bullet">🗡</div><div>fights cultists at base</div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="footer">Reload the page to return here or change selection</div>
-  </div>
-
-<script>
-  const playerSelect = document.getElementById('playerSelect');
-  const roles2 = document.getElementById('roles2');
-  const roles3 = document.getElementById('roles3');
-  const subtitle = document.getElementById('subtitle');
-
-  // Load saved selection
-  const savedPlayers = localStorage.getItem('players');
-  const savedRole = localStorage.getItem('role');
-
-  function showPlayerSelect() {
-    playerSelect.classList.remove('hidden');
-    roles2.classList.add('hidden');
-    roles3.classList.add('hidden');
-    subtitle.textContent = 'How many players are you playing with?';
-  }
-
-  function showRoles(count) {
-    playerSelect.classList.add('hidden');
-    if (count === '2') {
-      roles2.classList.remove('hidden');
-      roles3.classList.add('hidden');
-      subtitle.textContent = 'Select your role (2 Players)';
-    } else if (count === '3') {
-      roles3.classList.remove('hidden');
-      roles2.classList.add('hidden');
-      subtitle.textContent = 'Select your role (3 Players)';
-    }
-  }
-
-  // Restore previous selection if exists
-  if (savedPlayers) {
-    showRoles(savedPlayers);
-    if (savedRole) {
-      alert(`You previously selected role: ${savedRole}`);
-    }
-  }
-
-  // Player count buttons
-  playerSelect.querySelectorAll('button').forEach(button => {
-    button.addEventListener('click', () => {
-      const count = button.getAttribute('data-players');
-      localStorage.setItem('players', count);
-      localStorage.removeItem('role'); // Clear old role when new player count chosen
-      showRoles(count);
-    });
+        const wrap = document.createElement('div');
+        wrap.className = 'thumb';
+        wrap.appendChild(canvas);
+        previewGrid.appendChild(wrap);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
   });
+});
 
-  // Role selection
-  document.querySelectorAll('.role-choice').forEach(card => {
-    card.addEventListener('click', () => {
-      const role = card.getAttribute('data-role');
-      localStorage.setItem('role', role);
-      alert(`You selected role:\n\n${role}\n\nReload to change.`);
-    });
+[outlineWidthInput, outlineColorInput, edgeSmoothingInput].forEach(el => {
+  el.addEventListener('input', () => {
+    items.forEach(item => renderOutline(item.img, item.canvas));
   });
-</script>
+});
 
-</body>
-</html>
+function renderOutline(img, canvas) {
+  const width = parseInt(outlineWidthInput.value, 10);
+  const color = outlineColorInput.value;
+  const smooth = edgeSmoothingInput.checked;
+
+  const pad = width + 2;
+  canvas.width = img.width + pad * 2;
+  canvas.height = img.height + pad * 2;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Temporary canvas to hold original image
+  const temp = document.createElement('canvas');
+  temp.width = canvas.width;
+  temp.height = canvas.height;
+  temp.getContext('2d').drawImage(img, pad, pad);
+
+  // Draw outline
+  for (let y = -width; y <= width; y++) {
+    for (let x = -width; x <= width; x++) {
+      if (x * x + y * y <= width * width) {
+        ctx.drawImage(temp, x, y);
+      }
+    }
+  }
+
+  // Optional smoothing
+  if (smooth) {
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.putImageData(imgData, 0, 0);
+    ctx.filter = 'blur(1.25px)';
+    ctx.drawImage(canvas, 0, 0);
+    ctx.filter = 'none';
+  }
+
+  // Color the outline
+  ctx.globalCompositeOperation = 'source-in';
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Draw original image on top
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(img, pad, pad);
+}
+
+downloadAll.addEventListener('click', async () => {
+  if (!items.length) return;
+
+  const zip = new JSZip();
+  for (const item of items) {
+    const data = item.canvas.toDataURL('image/png').split(',')[1];
+    zip.file(item.name + '_outlined.png', data, { base64: true });
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'outlined_images.zip';
+  document.body.appendChild(a); // append to body for Firefox
+  a.click();
+  a.remove();
+});
+const fileInput = document.getElementById('fileInput');
+const previewGrid = document.getElementById('previewGrid');
+const downloadAll = document.getElementById('downloadAll');
+const outlineWidthInput = document.getElementById('outlineWidth');
+const outlineColorInput = document.getElementById('outlineColor');
+const edgeSmoothingInput = document.getElementById('edgeSmoothing');
+
+let items = [];
+
+fileInput.addEventListener('change', () => {
+  items = [];
+  previewGrid.innerHTML = '';
+
+  Array.from(fileInput.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        renderOutline(img, canvas);
+        items.push({ name: file.name.replace(/\.[^/.]+$/, ''), img, canvas });
+
+        const wrap = document.createElement('div');
+        wrap.className = 'thumb';
+        wrap.appendChild(canvas);
+        previewGrid.appendChild(wrap);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+});
+
+[outlineWidthInput, outlineColorInput, edgeSmoothingInput].forEach(el => {
+  el.addEventListener('input', () => {
+    items.forEach(item => renderOutline(item.img, item.canvas));
+  });
+});
+
+function renderOutline(img, canvas) {
+  const width = parseInt(outlineWidthInput.value, 10);
+  const color = outlineColorInput.value;
+  const smooth = edgeSmoothingInput.checked;
+
+  const pad = width + 2;
+  canvas.width = img.width + pad * 2;
+  canvas.height = img.height + pad * 2;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Temporary canvas to hold original image
+  const temp = document.createElement('canvas');
+  temp.width = canvas.width;
+  temp.height = canvas.height;
+  temp.getContext('2d').drawImage(img, pad, pad);
+
+  // Draw outline
+  for (let y = -width; y <= width; y++) {
+    for (let x = -width; x <= width; x++) {
+      if (x * x + y * y <= width * width) {
+        ctx.drawImage(temp, x, y);
+      }
+    }
+  }
+
+  // Optional smoothing
+  if (smooth) {
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.putImageData(imgData, 0, 0);
+    ctx.filter = 'blur(1.25px)';
+    ctx.drawImage(canvas, 0, 0);
+    ctx.filter = 'none';
+  }
+
+  // Color the outline
+  ctx.globalCompositeOperation = 'source-in';
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Draw original image on top
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(img, pad, pad);
+}
+
+downloadAll.addEventListener('click', async () => {
+  if (!items.length) return;
+
+  const zip = new JSZip();
+  for (const item of items) {
+    const data = item.canvas.toDataURL('image/png').split(',')[1];
+    zip.file(item.name + '_outlined.png', data, { base64: true });
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'outlined_images.zip';
+  document.body.appendChild(a); // append to body for Firefox
+  a.click();
+  a.remove();
+});
