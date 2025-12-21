@@ -1,3 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Image Outline Tool</title>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:#f3f4f6;
+      color:#111827;
+      margin:0;
+      padding:24px;
+    }
+    h1 { margin:0 0 4px 0; font-size:26px; }
+    p { margin:0 0 20px 0; color:#4b5563; }
+    .container { display:grid; grid-template-columns: 1fr 300px; gap:20px; }
+    .panel { background:white; border-radius:8px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+    .upload { border:2px dashed #d1d5db; border-radius:6px; padding:24px; text-align:center; cursor:pointer; color:#374151; }
+    .upload:hover { background:#f9fafb; }
+    input[type=file] { display:none; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap:12px; margin-top:16px; }
+    .thumb { background:#f9fafb; border-radius:6px; padding:8px; }
+    canvas { width:100%; height:auto; display:block; }
+    label { display:block; margin-top:14px; font-weight:600; font-size:14px; }
+    input[type=number], input[type=color] { width:100%; padding:6px; margin-top:6px; border-radius:4px; border:1px solid #d1d5db; }
+    .checkbox { margin-top:12px; font-size:14px; }
+    button { margin-top:16px; width:100%; padding:10px; border-radius:6px; border:1px solid #d1d5db; background:#111827; color:white; font-weight:600; cursor:pointer; }
+    button:hover { background:#000; }
+  </style>
+</head>
+<body>
+
+<h1>Image Outline Tool</h1>
+<p>Add a clean outline to multiple images. All downloads are PNG.</p>
+
+<div class="container">
+  <div class="panel">
+    <div class="upload" onclick="fileInput.click()">
+      <strong>Upload images</strong><br>
+      <span style="font-size:13px;color:#6b7280">PNG, JPG, WEBP, GIF • multiple supported</span>
+      <input type="file" id="fileInput" accept="image/*" multiple>
+    </div>
+    <div class="grid" id="previewGrid"></div>
+  </div>
+
+  <div class="panel">
+    <h3 style="margin-top:0">Outline settings</h3>
+    <label for="outlineWidth">Outline width (px)</label>
+    <input type="number" id="outlineWidth" value="20" min="1" max="150" />
+    <label for="outlineColor">Outline color</label>
+    <input type="color" id="outlineColor" value="#000000" />
+    <div class="checkbox">
+      <input type="checkbox" id="edgeSmoothing" checked />
+      <label for="edgeSmoothing" style="display:inline;font-weight:500">Smooth edges</label>
+    </div>
+    <button id="downloadAll">Download all as ZIP</button>
+  </div>
+</div>
+
+<script>
 const fileInput = document.getElementById('fileInput');
 const previewGrid = document.getElementById('previewGrid');
 const downloadAll = document.getElementById('downloadAll');
@@ -35,7 +96,7 @@ fileInput.addEventListener('change', () => {
   el.addEventListener('input', () => {
     items.forEach(item => {
       const img = new Image();
-      img.src = item.canvas.toDataURL(); // recreate image from canvas
+      img.src = item.canvas.toDataURL();
       img.onload = () => renderOutline(img, item.canvas);
     });
   });
@@ -52,16 +113,14 @@ function renderOutline(img, canvas) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw outline using shadow trick (much faster than pixel loop)
+  // Draw outline using shadow (fast)
   ctx.save();
   ctx.shadowColor = color;
   ctx.shadowBlur = width;
   ctx.drawImage(img, pad, pad);
   ctx.restore();
 
-  // Optional smoothing
   if (smooth) ctx.filter = 'blur(1.25px)';
-
   ctx.drawImage(img, pad, pad);
   ctx.filter = 'none';
 }
@@ -83,3 +142,7 @@ downloadAll.addEventListener('click', async () => {
   a.click();
   a.remove();
 });
+</script>
+
+</body>
+</html>
