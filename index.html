@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Image Outline Tool (Batch + Worker)</title>
+<title>Solid Image Outline Tool</title>
 
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
@@ -17,7 +17,7 @@ p { color:#6b7280; margin-top:0; }
 
 .container {
   display:grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr 300px;
   gap:20px;
 }
 
@@ -67,7 +67,7 @@ p { color:#6b7280; margin-top:0; }
 canvas { width:100%; height:auto; }
 
 label { font-weight:600; display:block; margin-top:14px; }
-input, select { width:100%; margin-top:6px; }
+input { width:100%; margin-top:6px; }
 
 .progress {
   height:8px;
@@ -97,8 +97,8 @@ button.main {
 </head>
 <body>
 
-<h1>Image Outline Tool</h1>
-<p>Batch outlines • Drag & drop • Web Worker powered</p>
+<h1>Solid Image Outline Tool</h1>
+<p>Hard-edge outlines • Batch safe • No blur</p>
 
 <div class="container">
 
@@ -114,28 +114,10 @@ button.main {
 
 <div class="panel">
   <label>Outline Width (px)</label>
-  <input type="number" id="width" value="20">
+  <input type="number" id="width" value="20" min="1" max="150">
 
   <label>Outline Color</label>
   <input type="color" id="color" value="#000000">
-
-  <label>Outline Mode</label>
-  <select id="mode">
-    <option value="outer">Outer</option>
-    <option value="inner">Inner</option>
-  </select>
-
-  <label>Export Scale</label>
-  <select id="scale">
-    <option value="1">1×</option>
-    <option value="2">2×</option>
-    <option value="3">3×</option>
-    <option value="4">4×</option>
-  </select>
-
-  <label>
-    <input type="checkbox" id="smooth" checked> Smooth edges
-  </label>
 
   <div class="progress"><div id="progress"></div></div>
 
@@ -150,46 +132,48 @@ const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 const progressBar = document.getElementById('progress');
 
-const controls = {
-  width: document.getElementById('width'),
-  color: document.getElementById('color'),
-  mode: document.getElementById('mode'),
-  scale: document.getElementById('scale'),
-  smooth: document.getElementById('smooth')
-};
+const outlineWidth = document.getElementById('width');
+const outlineColor = document.getElementById('color');
 
 let items = [];
 
-/* ---------- Web Worker ---------- */
+/* ---------- WEB WORKER (SOLID OUTLINE) ---------- */
 const worker = new Worker(URL.createObjectURL(new Blob([`
 self.onmessage = async e => {
-  const { imgData, settings, index } = e.data;
-  const img = await createImageBitmap(imgData);
+  const { file, width, color, index } = e.data;
+  const img = await createImageBitmap(file);
 
-  const w = img.width * settings.scale;
-  const h = img.height * settings.scale;
-  const pad = settings.mode === 'outer' ? settings.width * settings.scale : 0;
+  const pad = width;
+  const w = img.width + pad * 2;
+  const h = img.height + pad * 2;
 
-  const c = new OffscreenCanvas(w + pad*2, h + pad*2);
-  const ctx = c.getContext('2d');
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext('2d');
 
-  ctx.scale(settings.scale, settings.scale);
-
-  if (settings.mode === 'outer') {
-    ctx.shadowColor = settings.color;
-    ctx.shadowBlur = settings.width;
-    ctx.drawImage(img, pad/settings.scale, pad/settings.scale);
+  // 1) Draw expanded alpha mask
+  ctx.fillStyle = color;
+  for (let y = -width; y <= width; y++) {
+    for (let x = -width; x <= width; x++) {
+      if (x*x + y*y <= width*width) {
+        ctx.drawImage(img, pad + x, pad + y);
+      }
+    }
   }
 
-  if (settings.smooth) ctx.filter = 'blur(1px)';
-  ctx.drawImage(img, pad/settings.scale, pad/settings.scale);
+  // 2) Convert that mask to solid color
+  ctx.globalCompositeOperation = 'source-in';
+  ctx.fillRect(0, 0, w, h);
 
-  const blob = await c.convertToBlob({ type:'image/png' });
+  // 3) Draw original image on top
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(img, pad, pad);
+
+  const blob = await canvas.convertToBlob({ type: 'image/png' });
   self.postMessage({ blob, index });
 };
 `], { type:'application/javascript' })));
 
-/* ---------- UI ---------- */
+/* ---------- UPLOAD ---------- */
 dropZone.onclick = () => fileInput.click();
 
 dropZone.ondragover = e => {
@@ -207,48 +191,41 @@ fileInput.onchange = () => handleFiles(fileInput.files);
 
 function handleFiles(files) {
   [...files].forEach(file => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      grid.appendChild(makeThumb(canvas, file.name));
-      items.push({ file, img, canvas });
-      renderAll();
-    };
-    img.src = URL.createObjectURL(file);
+    const canvas = document.createElement('canvas');
+    grid.appendChild(makeThumb(canvas));
+    items.push({ file, canvas });
   });
+  renderAll();
 }
 
-function makeThumb(canvas, name) {
+function makeThumb(canvas) {
   const wrap = document.createElement('div');
   wrap.className = 'thumb';
+
   const btn = document.createElement('button');
   btn.textContent = '×';
   btn.onclick = () => {
     wrap.remove();
     items = items.filter(i => i.canvas !== canvas);
   };
+
   wrap.append(btn, canvas);
   return wrap;
 }
 
-Object.values(controls).forEach(c => c.oninput = renderAll);
+/* ---------- RENDER ---------- */
+outlineWidth.oninput = outlineColor.oninput = renderAll;
 
-/* ---------- Rendering ---------- */
 function renderAll() {
   if (!items.length) return;
   progressBar.style.width = '0%';
 
   items.forEach((item, i) => {
     worker.postMessage({
-      imgData: item.file,
+      file: item.file,
       index: i,
-      settings: {
-        width:+controls.width.value,
-        color:controls.color.value,
-        mode:controls.mode.value,
-        scale:+controls.scale.value,
-        smooth:controls.smooth.checked
-      }
+      width: +outlineWidth.value,
+      color: outlineColor.value
     });
   });
 }
@@ -260,21 +237,27 @@ worker.onmessage = e => {
     const c = items[index].canvas;
     c.width = img.width;
     c.height = img.height;
-    c.getContext('2d').drawImage(img,0,0);
+    c.getContext('2d').drawImage(img, 0, 0);
     progressBar.style.width =
-      ((index+1)/items.length*100)+'%';
+      ((index + 1) / items.length * 100) + '%';
   };
   img.src = URL.createObjectURL(blob);
 };
 
-/* ---------- Download ---------- */
+/* ---------- DOWNLOAD ---------- */
 document.getElementById('download').onclick = async () => {
+  if (!items.length) return;
+
   const zip = new JSZip();
   items.forEach(i => {
-    zip.file(i.file.name.replace(/\..+$/,'')+'_outlined.png',
-      i.canvas.toDataURL().split(',')[1], {base64:true});
+    zip.file(
+      i.file.name.replace(/\..+$/, '') + '_outlined.png',
+      i.canvas.toDataURL().split(',')[1],
+      { base64:true }
+    );
   });
-  const blob = await zip.generateAsync({type:'blob'});
+
+  const blob = await zip.generateAsync({ type:'blob' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'outlined_images.zip';
