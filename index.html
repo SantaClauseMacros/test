@@ -1,177 +1,285 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Image Outline Generator - Multiple Images</title>
-  <style>
-    body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
-    h1 { margin-bottom: 5px; }
-    p { margin-top:0; color:#555; }
-    .container { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
-    .panel { background:white; padding:15px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
-    canvas { background: repeating-conic-gradient(#eee 0% 25%, #ddd 0% 50%) 50% / 20px 20px; border-radius:6px; max-width:100%; height:auto; }
-    label { display:block; margin-top:12px; font-weight:bold; }
-    input[type=number], input[type=color] { width:100%; padding:6px; margin-top:4px; }
-    button { margin-top:14px; padding:10px 14px; font-weight:bold; cursor:pointer; border-radius:6px; border:none; background:#4f46e5; color:white; }
-    button:hover { background:#4338ca; }
-    .checkbox { margin-top:10px; font-weight:normal; }
-    .image-wrapper { margin-bottom:20px; }
-  </style>
+<meta charset="UTF-8">
+<title>Image Outline Tool (Batch + Worker)</title>
+
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<style>
+body {
+  font-family: system-ui, sans-serif;
+  background:#f3f4f6;
+  padding:24px;
+}
+h1 { margin-bottom:4px; }
+p { color:#6b7280; margin-top:0; }
+
+.container {
+  display:grid;
+  grid-template-columns: 1fr 320px;
+  gap:20px;
+}
+
+.panel {
+  background:white;
+  border-radius:8px;
+  padding:16px;
+  box-shadow:0 1px 3px rgba(0,0,0,.1);
+}
+
+.upload {
+  border:2px dashed #d1d5db;
+  padding:28px;
+  text-align:center;
+  border-radius:6px;
+  cursor:pointer;
+}
+.upload.dragover {
+  background:#eef2ff;
+  border-color:#6366f1;
+}
+
+.grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px,1fr));
+  gap:12px;
+  margin-top:16px;
+}
+
+.thumb {
+  background:#f9fafb;
+  border-radius:6px;
+  padding:8px;
+  position:relative;
+}
+.thumb button {
+  position:absolute;
+  top:4px;
+  right:4px;
+  background:#ef4444;
+  color:white;
+  border:none;
+  border-radius:4px;
+  cursor:pointer;
+}
+
+canvas { width:100%; height:auto; }
+
+label { font-weight:600; display:block; margin-top:14px; }
+input, select { width:100%; margin-top:6px; }
+
+.progress {
+  height:8px;
+  background:#e5e7eb;
+  border-radius:999px;
+  overflow:hidden;
+  margin-top:12px;
+}
+.progress div {
+  height:100%;
+  width:0%;
+  background:#6366f1;
+}
+
+button.main {
+  margin-top:16px;
+  width:100%;
+  padding:10px;
+  font-weight:600;
+  background:#111827;
+  color:white;
+  border-radius:6px;
+  border:none;
+  cursor:pointer;
+}
+</style>
 </head>
 <body>
 
-<h1>Image Outline Generator</h1>
-<p>Upload multiple images. Add clean outlines. Download as PNG.</p>
+<h1>Image Outline Tool</h1>
+<p>Batch outlines • Drag & drop • Web Worker powered</p>
+
+<div class="container">
 
 <div class="panel">
-  <input type="file" id="fileInput" accept="image/*" multiple />
+  <div class="upload" id="dropZone">
+    <strong>Drop images or click</strong><br>
+    <small>PNG, JPG, WEBP, GIF</small>
+    <input type="file" id="fileInput" hidden multiple accept="image/*">
+  </div>
+
+  <div class="grid" id="grid"></div>
 </div>
 
-<div id="imageContainer"></div>
-
-<div class="panel" style="min-width:260px;">
-  <h3>Tool Options</h3>
-
+<div class="panel">
   <label>Outline Width (px)</label>
-  <input type="number" id="outlineWidth" value="25" min="1" max="150" />
+  <input type="number" id="width" value="20">
 
   <label>Outline Color</label>
-  <input type="color" id="outlineColor" value="#000000" />
+  <input type="color" id="color" value="#000000">
 
-  <label class="checkbox">
-    <input type="checkbox" id="edgeSmoothing" checked /> Enable Edge Smoothing
+  <label>Outline Mode</label>
+  <select id="mode">
+    <option value="outer">Outer</option>
+    <option value="inner">Inner</option>
+  </select>
+
+  <label>Export Scale</label>
+  <select id="scale">
+    <option value="1">1×</option>
+    <option value="2">2×</option>
+    <option value="3">3×</option>
+    <option value="4">4×</option>
+  </select>
+
+  <label>
+    <input type="checkbox" id="smooth" checked> Smooth edges
   </label>
 
-  <button id="downloadAllBtn">Download All as ZIP</button>
+  <div class="progress"><div id="progress"></div></div>
+
+  <button class="main" id="download">Download ZIP</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</div>
+
 <script>
+const grid = document.getElementById('grid');
+const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
-const imageContainer = document.getElementById('imageContainer');
-const outlineWidth = document.getElementById('outlineWidth');
-const outlineColor = document.getElementById('outlineColor');
-const edgeSmoothing = document.getElementById('edgeSmoothing');
-const downloadAllBtn = document.getElementById('downloadAllBtn');
+const progressBar = document.getElementById('progress');
 
-let images = [];
+const controls = {
+  width: document.getElementById('width'),
+  color: document.getElementById('color'),
+  mode: document.getElementById('mode'),
+  scale: document.getElementById('scale'),
+  smooth: document.getElementById('smooth')
+};
 
-fileInput.addEventListener('change', () => {
-  imageContainer.innerHTML = '';
-  images = [];
+let items = [];
 
-  Array.from(fileInput.files).forEach(file => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'image-wrapper';
+/* ---------- Web Worker ---------- */
+const worker = new Worker(URL.createObjectURL(new Blob([`
+self.onmessage = async e => {
+  const { imgData, settings, index } = e.data;
+  const img = await createImageBitmap(imgData);
 
-        const inputCanvas = document.createElement('canvas');
-        const outputCanvas = document.createElement('canvas');
-        const applyBtn = document.createElement('button');
-        applyBtn.textContent = 'Apply Outline';
-        const downloadBtn = document.createElement('button');
-        downloadBtn.textContent = 'Download PNG';
-        downloadBtn.style.backgroundColor = '#16a34a';
-        downloadBtn.style.marginLeft = '10px';
+  const w = img.width * settings.scale;
+  const h = img.height * settings.scale;
+  const pad = settings.mode === 'outer' ? settings.width * settings.scale : 0;
 
-        // Draw original image in inputCanvas
-        inputCanvas.width = img.width;
-        inputCanvas.height = img.height;
-        inputCanvas.getContext('2d').drawImage(img,0,0);
+  const c = new OffscreenCanvas(w + pad*2, h + pad*2);
+  const ctx = c.getContext('2d');
 
-        wrapper.appendChild(inputCanvas);
-        wrapper.appendChild(outputCanvas);
-        wrapper.appendChild(applyBtn);
-        wrapper.appendChild(downloadBtn);
-        imageContainer.appendChild(wrapper);
+  ctx.scale(settings.scale, settings.scale);
 
-        const imageObj = { img, inputCanvas, outputCanvas };
-        images.push(imageObj);
+  if (settings.mode === 'outer') {
+    ctx.shadowColor = settings.color;
+    ctx.shadowBlur = settings.width;
+    ctx.drawImage(img, pad/settings.scale, pad/settings.scale);
+  }
 
-        // Apply outline
-        applyBtn.addEventListener('click', () => applyOutline(imageObj));
-        downloadBtn.addEventListener('click', () => {
-          const a = document.createElement('a');
-          a.download = 'outlined.png';
-          a.href = outputCanvas.toDataURL('image/png');
-          a.click();
-        });
+  if (settings.smooth) ctx.filter = 'blur(1px)';
+  ctx.drawImage(img, pad/settings.scale, pad/settings.scale);
 
-        // Live update when options change
-        [outlineWidth, outlineColor, edgeSmoothing].forEach(el => {
-          el.addEventListener('input', () => applyOutline(imageObj));
-        });
+  const blob = await c.convertToBlob({ type:'image/png' });
+  self.postMessage({ blob, index });
+};
+`], { type:'application/javascript' })));
 
-        // Initial apply
-        applyOutline(imageObj);
-      };
-      img.src = reader.result;
+/* ---------- UI ---------- */
+dropZone.onclick = () => fileInput.click();
+
+dropZone.ondragover = e => {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+};
+dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+dropZone.ondrop = e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  handleFiles(e.dataTransfer.files);
+};
+
+fileInput.onchange = () => handleFiles(fileInput.files);
+
+function handleFiles(files) {
+  [...files].forEach(file => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      grid.appendChild(makeThumb(canvas, file.name));
+      items.push({ file, img, canvas });
+      renderAll();
     };
-    reader.readAsDataURL(file);
+    img.src = URL.createObjectURL(file);
   });
-});
-
-function applyOutline(imageObj) {
-  const { img, outputCanvas } = imageObj;
-  const width = parseInt(outlineWidth.value, 10);
-  const color = outlineColor.value;
-  const smooth = edgeSmoothing.checked;
-  const pad = width + 2;
-
-  outputCanvas.width = img.width + pad*2;
-  outputCanvas.height = img.height + pad*2;
-  const ctx = outputCanvas.getContext('2d');
-  ctx.clearRect(0,0,outputCanvas.width,outputCanvas.height);
-
-  // Temporary canvas for alpha expansion
-  const temp = document.createElement('canvas');
-  temp.width = outputCanvas.width;
-  temp.height = outputCanvas.height;
-  const tctx = temp.getContext('2d');
-  tctx.drawImage(img,pad,pad);
-
-  for(let y=-width;y<=width;y++){
-    for(let x=-width;x<=width;x++){
-      if(x*x + y*y <= width*width){
-        ctx.drawImage(temp,x,y);
-      }
-    }
-  }
-
-  if(smooth){
-    ctx.filter = 'blur(1.5px)';
-    ctx.drawImage(outputCanvas,0,0);
-    ctx.filter = 'none';
-  }
-
-  ctx.globalCompositeOperation = 'source-in';
-  ctx.fillStyle = color;
-  ctx.fillRect(0,0,outputCanvas.width,outputCanvas.height);
-
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(img,pad,pad);
 }
 
-// Download all images as ZIP
-downloadAllBtn.addEventListener('click', async () => {
-  if(!images.length) return;
+function makeThumb(canvas, name) {
+  const wrap = document.createElement('div');
+  wrap.className = 'thumb';
+  const btn = document.createElement('button');
+  btn.textContent = '×';
+  btn.onclick = () => {
+    wrap.remove();
+    items = items.filter(i => i.canvas !== canvas);
+  };
+  wrap.append(btn, canvas);
+  return wrap;
+}
+
+Object.values(controls).forEach(c => c.oninput = renderAll);
+
+/* ---------- Rendering ---------- */
+function renderAll() {
+  if (!items.length) return;
+  progressBar.style.width = '0%';
+
+  items.forEach((item, i) => {
+    worker.postMessage({
+      imgData: item.file,
+      index: i,
+      settings: {
+        width:+controls.width.value,
+        color:controls.color.value,
+        mode:controls.mode.value,
+        scale:+controls.scale.value,
+        smooth:controls.smooth.checked
+      }
+    });
+  });
+}
+
+worker.onmessage = e => {
+  const { blob, index } = e.data;
+  const img = new Image();
+  img.onload = () => {
+    const c = items[index].canvas;
+    c.width = img.width;
+    c.height = img.height;
+    c.getContext('2d').drawImage(img,0,0);
+    progressBar.style.width =
+      ((index+1)/items.length*100)+'%';
+  };
+  img.src = URL.createObjectURL(blob);
+};
+
+/* ---------- Download ---------- */
+document.getElementById('download').onclick = async () => {
   const zip = new JSZip();
-  images.forEach((imageObj,index)=>{
-    const data = imageObj.outputCanvas.toDataURL('image/png').split(',')[1];
-    zip.file('outlined_'+(index+1)+'.png', data, {base64:true});
+  items.forEach(i => {
+    zip.file(i.file.name.replace(/\..+$/,'')+'_outlined.png',
+      i.canvas.toDataURL().split(',')[1], {base64:true});
   });
   const blob = await zip.generateAsync({type:'blob'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'outlined_images.zip';
-  document.body.appendChild(a);
   a.click();
-  a.remove();
-});
+};
 </script>
-
 </body>
 </html>
