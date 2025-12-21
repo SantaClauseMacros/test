@@ -18,7 +18,7 @@ fileInput.addEventListener('change', () => {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         renderOutline(img, canvas);
-        items.push({ name: file.name.replace(/\.[^/.]+$/, ''), img, canvas });
+        items.push({ name: file.name.replace(/\.[^/.]+$/, ''), canvas });
 
         const wrap = document.createElement('div');
         wrap.className = 'thumb';
@@ -33,109 +33,11 @@ fileInput.addEventListener('change', () => {
 
 [outlineWidthInput, outlineColorInput, edgeSmoothingInput].forEach(el => {
   el.addEventListener('input', () => {
-    items.forEach(item => renderOutline(item.img, item.canvas));
-  });
-});
-
-function renderOutline(img, canvas) {
-  const width = parseInt(outlineWidthInput.value, 10);
-  const color = outlineColorInput.value;
-  const smooth = edgeSmoothingInput.checked;
-
-  const pad = width + 2;
-  canvas.width = img.width + pad * 2;
-  canvas.height = img.height + pad * 2;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Temporary canvas to hold original image
-  const temp = document.createElement('canvas');
-  temp.width = canvas.width;
-  temp.height = canvas.height;
-  temp.getContext('2d').drawImage(img, pad, pad);
-
-  // Draw outline
-  for (let y = -width; y <= width; y++) {
-    for (let x = -width; x <= width; x++) {
-      if (x * x + y * y <= width * width) {
-        ctx.drawImage(temp, x, y);
-      }
-    }
-  }
-
-  // Optional smoothing
-  if (smooth) {
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.putImageData(imgData, 0, 0);
-    ctx.filter = 'blur(1.25px)';
-    ctx.drawImage(canvas, 0, 0);
-    ctx.filter = 'none';
-  }
-
-  // Color the outline
-  ctx.globalCompositeOperation = 'source-in';
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Draw original image on top
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(img, pad, pad);
-}
-
-downloadAll.addEventListener('click', async () => {
-  if (!items.length) return;
-
-  const zip = new JSZip();
-  for (const item of items) {
-    const data = item.canvas.toDataURL('image/png').split(',')[1];
-    zip.file(item.name + '_outlined.png', data, { base64: true });
-  }
-
-  const blob = await zip.generateAsync({ type: 'blob' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'outlined_images.zip';
-  document.body.appendChild(a); // append to body for Firefox
-  a.click();
-  a.remove();
-});
-const fileInput = document.getElementById('fileInput');
-const previewGrid = document.getElementById('previewGrid');
-const downloadAll = document.getElementById('downloadAll');
-const outlineWidthInput = document.getElementById('outlineWidth');
-const outlineColorInput = document.getElementById('outlineColor');
-const edgeSmoothingInput = document.getElementById('edgeSmoothing');
-
-let items = [];
-
-fileInput.addEventListener('change', () => {
-  items = [];
-  previewGrid.innerHTML = '';
-
-  Array.from(fileInput.files).forEach(file => {
-    const reader = new FileReader();
-    reader.onload = () => {
+    items.forEach(item => {
       const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        renderOutline(img, canvas);
-        items.push({ name: file.name.replace(/\.[^/.]+$/, ''), img, canvas });
-
-        const wrap = document.createElement('div');
-        wrap.className = 'thumb';
-        wrap.appendChild(canvas);
-        previewGrid.appendChild(wrap);
-      };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  });
-});
-
-[outlineWidthInput, outlineColorInput, edgeSmoothingInput].forEach(el => {
-  el.addEventListener('input', () => {
-    items.forEach(item => renderOutline(item.img, item.canvas));
+      img.src = item.canvas.toDataURL(); // recreate image from canvas
+      img.onload = () => renderOutline(img, item.canvas);
+    });
   });
 });
 
@@ -143,62 +45,41 @@ function renderOutline(img, canvas) {
   const width = parseInt(outlineWidthInput.value, 10);
   const color = outlineColorInput.value;
   const smooth = edgeSmoothingInput.checked;
-
   const pad = width + 2;
+
   canvas.width = img.width + pad * 2;
   canvas.height = img.height + pad * 2;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Temporary canvas to hold original image
-  const temp = document.createElement('canvas');
-  temp.width = canvas.width;
-  temp.height = canvas.height;
-  temp.getContext('2d').drawImage(img, pad, pad);
-
-  // Draw outline
-  for (let y = -width; y <= width; y++) {
-    for (let x = -width; x <= width; x++) {
-      if (x * x + y * y <= width * width) {
-        ctx.drawImage(temp, x, y);
-      }
-    }
-  }
+  // Draw outline using shadow trick (much faster than pixel loop)
+  ctx.save();
+  ctx.shadowColor = color;
+  ctx.shadowBlur = width;
+  ctx.drawImage(img, pad, pad);
+  ctx.restore();
 
   // Optional smoothing
-  if (smooth) {
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.putImageData(imgData, 0, 0);
-    ctx.filter = 'blur(1.25px)';
-    ctx.drawImage(canvas, 0, 0);
-    ctx.filter = 'none';
-  }
+  if (smooth) ctx.filter = 'blur(1.25px)';
 
-  // Color the outline
-  ctx.globalCompositeOperation = 'source-in';
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Draw original image on top
-  ctx.globalCompositeOperation = 'source-over';
   ctx.drawImage(img, pad, pad);
+  ctx.filter = 'none';
 }
 
 downloadAll.addEventListener('click', async () => {
   if (!items.length) return;
 
   const zip = new JSZip();
-  for (const item of items) {
+  items.forEach(item => {
     const data = item.canvas.toDataURL('image/png').split(',')[1];
     zip.file(item.name + '_outlined.png', data, { base64: true });
-  }
+  });
 
   const blob = await zip.generateAsync({ type: 'blob' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'outlined_images.zip';
-  document.body.appendChild(a); // append to body for Firefox
+  document.body.appendChild(a);
   a.click();
   a.remove();
 });
