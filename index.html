@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <title>Solid Image Outline Tool</title>
 
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-
 <style>
 body {
   font-family: system-ui, sans-serif;
@@ -98,7 +96,7 @@ button.main {
 <body>
 
 <h1>Solid Image Outline Tool</h1>
-<p>Hard-edge outlines • Batch safe • No blur</p>
+<p>Hard-edge outlines • Batch safe • Individual downloads</p>
 
 <div class="container">
 
@@ -121,7 +119,7 @@ button.main {
 
   <div class="progress"><div id="progress"></div></div>
 
-  <button class="main" id="download">Download ZIP</button>
+  <button class="main" id="download">Download Images</button>
 </div>
 
 </div>
@@ -150,8 +148,8 @@ self.onmessage = async e => {
   const canvas = new OffscreenCanvas(w, h);
   const ctx = canvas.getContext('2d');
 
-  // 1) Draw expanded alpha mask
   ctx.fillStyle = color;
+
   for (let y = -width; y <= width; y++) {
     for (let x = -width; x <= width; x++) {
       if (x*x + y*y <= width*width) {
@@ -160,15 +158,13 @@ self.onmessage = async e => {
     }
   }
 
-  // 2) Convert that mask to solid color
   ctx.globalCompositeOperation = 'source-in';
   ctx.fillRect(0, 0, w, h);
 
-  // 3) Draw original image on top
   ctx.globalCompositeOperation = 'source-over';
   ctx.drawImage(img, pad, pad);
 
-  const blob = await canvas.convertToBlob({ type: 'image/png' });
+  const blob = await canvas.convertToBlob({ type:'image/png' });
   self.postMessage({ blob, index });
 };
 `], { type:'application/javascript' })));
@@ -244,24 +240,17 @@ worker.onmessage = e => {
   img.src = URL.createObjectURL(blob);
 };
 
-/* ---------- DOWNLOAD ---------- */
-document.getElementById('download').onclick = async () => {
-  if (!items.length) return;
-
-  const zip = new JSZip();
-  items.forEach(i => {
-    zip.file(
-      i.file.name.replace(/\..+$/, '') + '_outlined.png',
-      i.canvas.toDataURL().split(',')[1],
-      { base64:true }
-    );
+/* ---------- DOWNLOAD (NO ZIP) ---------- */
+document.getElementById('download').onclick = () => {
+  items.forEach(item => {
+    const a = document.createElement('a');
+    a.href = item.canvas.toDataURL('image/png');
+    a.download =
+      item.file.name.replace(/\..+$/, '') + '_outlined.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   });
-
-  const blob = await zip.generateAsync({ type:'blob' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'outlined_images.zip';
-  a.click();
 };
 </script>
 </body>
