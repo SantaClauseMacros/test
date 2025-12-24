@@ -87,18 +87,6 @@ button.main {
   cursor: pointer;
 }
 
-.progress {
-  height: 8px;
-  background: #e5e7eb;
-  border-radius: 999px;
-  margin-top: 10px;
-  overflow: hidden;
-}
-.progress div {
-  height: 100%;
-  width: 0%;
-  background: #6366f1;
-}
 .editor {
   position: fixed;
   inset: 0;
@@ -113,7 +101,7 @@ button.main {
 .editor-box {
   background: white;
   width: 90%;
-  max-width: 1000px;
+  max-width: 1100px;
   border-radius: 16px;
   padding: 16px;
 }
@@ -131,14 +119,10 @@ button.main {
   margin: 12px 0;
 }
 
-.editor canvas {
-  width: 100%;
-  border-radius: 8px;
-}
-
 .editor-controls {
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(3,1fr);
+  gap: 10px;
 }
 </style>
 </head>
@@ -146,7 +130,7 @@ button.main {
 <body>
 
 <h1>Smart Auto Image Editor Tool</h1>
-<p>Auto background removal, outlines, cropping, editing & resizing.</p>
+<p>Background removal, outlining, editing, lasso select, undo/redo.</p>
 
 <div class="container">
 
@@ -159,23 +143,11 @@ button.main {
 </div>
 
 <div class="panel">
-  <label>Outline Width</label>
-  <input type="number" id="width" value="25">
+  <label>Global Outline Width</label>
+  <input type="number" id="globalWidth" value="25">
 
-  <label>Outline Color</label>
-  <input type="color" id="color" value="#000000">
-
-  <div class="toggle">
-    <input type="checkbox" id="removeBg" checked>
-    <label>Remove Background</label>
-  </div>
-
-  <div class="toggle">
-    <input type="checkbox" id="crop" checked>
-    <label>Auto Crop (Centered)</label>
-  </div>
-
-  <div class="progress"><div id="progress"></div></div>
+  <label>Global Outline Color</label>
+  <input type="color" id="globalColor" value="#000000">
 
   <button class="main" id="download">Download All</button>
 </div>
@@ -196,19 +168,27 @@ button.main {
     </div>
 
     <div class="editor-controls">
-      <label>Brush Size</label>
-      <input type="range" id="brush" min="5" max="80" value="30">
-
-      <div class="toggle">
-        <input type="radio" name="mode" id="erase" checked>
-        <label>Erase</label>
-        <input type="radio" name="mode" id="restore">
-        <label>Restore</label>
+      <div>
+        <label>Brush Size</label>
+        <input type="range" id="brush" min="5" max="80" value="30">
       </div>
 
-      <label>Resize (%)</label>
-      <input type="range" id="resize" min="25" max="200" value="100">
+      <div>
+        <label>Resize (%)</label>
+        <input type="range" id="resize" min="25" max="200" value="100">
+      </div>
 
+      <div>
+        <label>Outline Width (This Image)</label>
+        <input type="number" id="localWidth" placeholder="Use global">
+      </div>
+
+      <button onclick="mode='erase'">Erase</button>
+      <button onclick="mode='restore'">Restore</button>
+      <button onclick="mode='lasso'">Lasso</button>
+
+      <button onclick="undo()">Undo</button>
+      <button onclick="redo()">Redo</button>
       <button onclick="resetEdit()">Reset</button>
       <button onclick="applyEdit()">Apply</button>
     </div>
@@ -217,92 +197,150 @@ button.main {
 
 <script>
 const grid = document.getElementById('grid');
-const items = [];
-let active = null;
-let originalImg = null;
-
 const editor = document.getElementById('editor');
 const editCanvas = document.getElementById('editCanvas');
 const previewCanvas = document.getElementById('previewCanvas');
 const ectx = editCanvas.getContext('2d');
 const pctx = previewCanvas.getContext('2d');
 
+let items = [];
+let active = null;
+let original = null;
+let mode = 'erase';
+let drawing = false;
+let history = [];
+let redoStack = [];
+let lasso = [];
+
 dropZone.onclick = () => fileInput.click();
 fileInput.onchange = () => addFiles(fileInput.files);
 
-function addFiles(files) {
-  [...files].forEach(file => {
-    const canvas = document.createElement('canvas');
-    const wrap = document.createElement('div');
-    wrap.className = 'thumb';
-    const del = document.createElement('button');
-    del.textContent = '×';
-    del.onclick = e => { e.stopPropagation(); wrap.remove(); };
-    wrap.append(del, canvas);
-    wrap.onclick = () => openEditor(canvas);
-    grid.appendChild(wrap);
+function addFiles(files){
+  [...files].forEach(file=>{
+    const wrap=document.createElement('div');
+    wrap.className='thumb';
+    const canvas=document.createElement('canvas');
+    wrap.append(canvas);
+    wrap.onclick=()=>openEditor(canvas);
+    grid.append(wrap);
 
-    const img = new Image();
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
+    const img=new Image();
+    img.onload=()=>{
+      canvas.width=img.width;
+      canvas.height=img.height;
       canvas.getContext('2d').drawImage(img,0,0);
     };
-    img.src = URL.createObjectURL(file);
+    img.src=URL.createObjectURL(file);
 
-    items.push({file, canvas});
+    items.push({canvas,file,outline:null});
   });
 }
 
-function openEditor(canvas) {
-  active = canvas;
-  originalImg = new Image();
-  originalImg.onload = () => {
-    editCanvas.width = previewCanvas.width = originalImg.width;
-    editCanvas.height = previewCanvas.height = originalImg.height;
-    ectx.drawImage(originalImg,0,0);
-    pctx.drawImage(originalImg,0,0);
+function openEditor(canvas){
+  active = items.find(i=>i.canvas===canvas);
+  original = new Image();
+  original.onload=()=>{
+    editCanvas.width=previewCanvas.width=original.width;
+    editCanvas.height=previewCanvas.height=original.height;
+    ectx.drawImage(original,0,0);
+    pctx.drawImage(original,0,0);
+    history=[editCanvas.toDataURL()];
+    redoStack=[];
     editor.classList.add('active');
   };
-  originalImg.src = canvas.toDataURL();
+  original.src=canvas.toDataURL();
 }
 
-let draw = false;
-editCanvas.onpointerdown = () => draw = true;
-editCanvas.onpointerup = () => draw = false;
-editCanvas.onpointermove = e => {
-  if(!draw) return;
-  const r = editCanvas.getBoundingClientRect();
-  const x = (e.clientX - r.left) * editCanvas.width / r.width;
-  const y = (e.clientY - r.top) * editCanvas.height / r.height;
-  ectx.globalCompositeOperation = erase.checked ? 'destination-out' : 'source-over';
+editCanvas.onpointerdown=e=>{
+  drawing=true;
+  saveState();
+};
+editCanvas.onpointerup=()=>{
+  drawing=false;
+  if(mode==='lasso' && lasso.length>2){
+    ectx.globalCompositeOperation='destination-out';
+    ectx.beginPath();
+    ectx.moveTo(lasso[0].x,lasso[0].y);
+    lasso.forEach(p=>ectx.lineTo(p.x,p.y));
+    ectx.closePath();
+    ectx.fill();
+    lasso=[];
+    refreshPreview();
+  }
+};
+editCanvas.onpointermove=e=>{
+  if(!drawing) return;
+  const r=editCanvas.getBoundingClientRect();
+  const x=(e.clientX-r.left)*editCanvas.width/r.width;
+  const y=(e.clientY-r.top)*editCanvas.height/r.height;
+
+  if(mode==='lasso'){
+    lasso.push({x,y});
+    return;
+  }
+
+  ectx.globalCompositeOperation = mode==='erase'?'destination-out':'source-over';
   ectx.beginPath();
   ectx.arc(x,y,brush.value,0,Math.PI*2);
   ectx.fill();
+  refreshPreview();
+};
+
+function refreshPreview(){
   pctx.clearRect(0,0,previewCanvas.width,previewCanvas.height);
   pctx.drawImage(editCanvas,0,0);
-};
-
-resize.oninput = () => {
-  const s = resize.value / 100;
-  editCanvas.width = previewCanvas.width = originalImg.width * s;
-  editCanvas.height = previewCanvas.height = originalImg.height * s;
-  ectx.drawImage(originalImg,0,0,editCanvas.width,editCanvas.height);
-  pctx.drawImage(editCanvas,0,0);
-};
-
-function resetEdit() {
-  ectx.drawImage(originalImg,0,0);
 }
-function applyEdit() {
-  active.width = editCanvas.width;
-  active.height = editCanvas.height;
-  active.getContext('2d').drawImage(editCanvas,0,0);
+
+function saveState(){
+  history.push(editCanvas.toDataURL());
+  if(history.length>20) history.shift();
+  redoStack=[];
+}
+
+function undo(){
+  if(history.length<2) return;
+  redoStack.push(history.pop());
+  load(history[history.length-1]);
+}
+
+function redo(){
+  if(!redoStack.length) return;
+  const s=redoStack.pop();
+  history.push(s);
+  load(s);
+}
+
+function load(src){
+  const i=new Image();
+  i.onload=()=>{
+    ectx.clearRect(0,0,editCanvas.width,editCanvas.height);
+    ectx.drawImage(i,0,0);
+    refreshPreview();
+  };
+  i.src=src;
+}
+
+function resetEdit(){
+  load(history[0]);
+}
+
+function applyEdit(){
+  active.canvas.width=editCanvas.width;
+  active.canvas.height=editCanvas.height;
+  active.canvas.getContext('2d').drawImage(editCanvas,0,0);
+  active.outline = localWidth.value || null;
   closeEditor();
 }
-function closeEditor() {
+
+function closeEditor(){
   editor.classList.remove('active');
 }
+
+document.onkeydown=e=>{
+  if(!editor.classList.contains('active')) return;
+  if(e.ctrlKey && e.key==='z') undo();
+  if(e.ctrlKey && (e.key==='y'||(e.shiftKey&&e.key==='Z'))) redo();
+};
 </script>
 
 </body>
