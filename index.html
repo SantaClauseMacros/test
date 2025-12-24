@@ -2,108 +2,160 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Solid Image Outline Tool</title>
+<title>Image Outline Studio</title>
 
 <style>
-body {
-  font-family: system-ui, sans-serif;
-  background:#f3f4f6;
-  padding:24px;
+:root {
+  --bg:#0f172a;
+  --panel:#111827ee;
+  --card:#020617;
+  --accent:#6366f1;
+  --text:#e5e7eb;
+  --muted:#9ca3af;
 }
-h1 { margin-bottom:4px; }
-p { color:#6b7280; margin-top:0; }
+
+* { box-sizing:border-box; }
+
+body {
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto;
+  background:radial-gradient(circle at top,#1e293b,#020617);
+  color:var(--text);
+  padding:28px;
+}
+
+h1 {
+  font-size:1.8rem;
+  margin:0;
+}
+p {
+  margin:.25rem 0 1.5rem;
+  color:var(--muted);
+}
 
 .container {
   display:grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns:1fr 320px;
   gap:20px;
 }
 
 .panel {
-  background:white;
-  border-radius:8px;
-  padding:16px;
-  box-shadow:0 1px 3px rgba(0,0,0,.1);
+  background:linear-gradient(180deg,#020617,#020617cc);
+  border-radius:14px;
+  padding:18px;
+  box-shadow:0 10px 30px rgba(0,0,0,.4);
+  border:1px solid #1e293b;
 }
 
 .upload {
-  border:2px dashed #d1d5db;
-  padding:28px;
+  border:2px dashed #334155;
+  border-radius:12px;
+  padding:36px;
   text-align:center;
-  border-radius:6px;
   cursor:pointer;
+  transition:.25s;
 }
+.upload:hover,
 .upload.dragover {
-  background:#eef2ff;
-  border-color:#6366f1;
+  border-color:var(--accent);
+  background:#020617;
 }
 
 .grid {
   display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px,1fr));
-  gap:12px;
+  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  gap:14px;
   margin-top:16px;
 }
 
 .thumb {
-  background:#f9fafb;
-  border-radius:6px;
-  padding:8px;
+  background:#020617;
+  border-radius:10px;
+  padding:10px;
   position:relative;
+  transition:.2s;
 }
+.thumb:hover {
+  transform:translateY(-2px);
+}
+
 .thumb button {
   position:absolute;
-  top:4px;
-  right:4px;
+  top:6px;
+  right:6px;
   background:#ef4444;
-  color:white;
   border:none;
-  border-radius:4px;
+  color:white;
+  border-radius:6px;
   cursor:pointer;
 }
 
-canvas { width:100%; height:auto; }
+canvas {
+  width:100%;
+  border-radius:6px;
+}
 
-label { font-weight:600; display:block; margin-top:14px; }
-input { width:100%; margin-top:6px; }
+label {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-weight:600;
+  margin-top:16px;
+}
+
+input[type="number"],
+input[type="range"],
+input[type="color"] {
+  width:100%;
+  margin-top:6px;
+}
+
+.toggle {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:14px;
+}
 
 .progress {
-  height:8px;
-  background:#e5e7eb;
+  height:10px;
+  background:#020617;
   border-radius:999px;
   overflow:hidden;
-  margin-top:12px;
+  margin-top:16px;
 }
 .progress div {
   height:100%;
   width:0%;
-  background:#6366f1;
+  background:linear-gradient(90deg,var(--accent),#818cf8);
+  transition:width .3s;
 }
 
 button.main {
-  margin-top:16px;
+  margin-top:18px;
   width:100%;
-  padding:10px;
-  font-weight:600;
-  background:#111827;
+  padding:12px;
+  font-weight:700;
+  background:linear-gradient(90deg,var(--accent),#818cf8);
   color:white;
-  border-radius:6px;
   border:none;
+  border-radius:10px;
   cursor:pointer;
+  font-size:1rem;
 }
 </style>
 </head>
 <body>
 
-<h1>Solid Image Outline Tool</h1>
-<p>Hard-edge outlines • Batch safe • Individual downloads</p>
+<h1>Image Outline Studio</h1>
+<p>Background removal • Solid outlines • Batch export</p>
 
 <div class="container">
 
 <div class="panel">
   <div class="upload" id="dropZone">
     <strong>Drop images or click</strong><br>
-    <small>PNG, JPG, WEBP, GIF</small>
+    <small>PNG • JPG • WEBP • GIF</small>
     <input type="file" id="fileInput" hidden multiple accept="image/*">
   </div>
 
@@ -111,11 +163,20 @@ button.main {
 </div>
 
 <div class="panel">
+
   <label>Outline Width (px)</label>
   <input type="number" id="width" value="25" min="1" max="150">
 
   <label>Outline Color</label>
   <input type="color" id="color" value="#000000">
+
+  <div class="toggle">
+    <input type="checkbox" id="removeBg" checked>
+    <label for="removeBg">Remove Background</label>
+  </div>
+
+  <label>Background Threshold</label>
+  <input type="range" id="threshold" min="5" max="80" value="25">
 
   <div class="progress"><div id="progress"></div></div>
 
@@ -132,124 +193,132 @@ const progressBar = document.getElementById('progress');
 
 const outlineWidth = document.getElementById('width');
 const outlineColor = document.getElementById('color');
+const removeBg = document.getElementById('removeBg');
+const threshold = document.getElementById('threshold');
 
 let items = [];
 
-/* ---------- WEB WORKER (SOLID OUTLINE) ---------- */
+/* ---------- WORKER ---------- */
 const worker = new Worker(URL.createObjectURL(new Blob([`
 self.onmessage = async e => {
-  const { file, width, color, index } = e.data;
+  const { file, width, color, index, removeBg, threshold } = e.data;
   const img = await createImageBitmap(file);
 
-  const pad = width;
-  const w = img.width + pad * 2;
-  const h = img.height + pad * 2;
+  const w = img.width;
+  const h = img.height;
 
-  const canvas = new OffscreenCanvas(w, h);
-  const ctx = canvas.getContext('2d');
+  const base = new OffscreenCanvas(w,h);
+  const bctx = base.getContext('2d');
+  bctx.drawImage(img,0,0);
 
-  ctx.fillStyle = color;
-
-  for (let y = -width; y <= width; y++) {
-    for (let x = -width; x <= width; x++) {
-      if (x*x + y*y <= width*width) {
-        ctx.drawImage(img, pad + x, pad + y);
+  if (removeBg) {
+    const d = bctx.getImageData(0,0,w,h);
+    const bg = [
+      d.data[0], d.data[1], d.data[2]
+    ];
+    for (let i=0;i<d.data.length;i+=4) {
+      const dr = d.data[i]-bg[0];
+      const dg = d.data[i+1]-bg[1];
+      const db = d.data[i+2]-bg[2];
+      if (Math.sqrt(dr*dr+dg*dg+db*db) < threshold) {
+        d.data[i+3]=0;
       }
+    }
+    bctx.putImageData(d,0,0);
+  }
+
+  const pad = width;
+  const out = new OffscreenCanvas(w+pad*2,h+pad*2);
+  const ctx = out.getContext('2d');
+
+  for (let y=-width;y<=width;y++) {
+    for (let x=-width;x<=width;x++) {
+      if (x*x+y*y<=width*width)
+        ctx.drawImage(base,pad+x,pad+y);
     }
   }
 
-  ctx.globalCompositeOperation = 'source-in';
-  ctx.fillRect(0, 0, w, h);
+  ctx.globalCompositeOperation='source-in';
+  ctx.fillStyle=color;
+  ctx.fillRect(0,0,out.width,out.height);
 
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(img, pad, pad);
+  ctx.globalCompositeOperation='source-over';
+  ctx.drawImage(base,pad,pad);
 
-  const blob = await canvas.convertToBlob({ type:'image/png' });
-  self.postMessage({ blob, index });
+  const blob = await out.convertToBlob({type:'image/png'});
+  self.postMessage({blob,index});
 };
-`], { type:'application/javascript' })));
+`],{type:'application/javascript'})));
 
 /* ---------- UPLOAD ---------- */
-dropZone.onclick = () => fileInput.click();
-
-dropZone.ondragover = e => {
-  e.preventDefault();
-  dropZone.classList.add('dragover');
-};
-dropZone.ondragleave = () => dropZone.classList.remove('dragover');
-dropZone.ondrop = e => {
+dropZone.onclick=()=>fileInput.click();
+dropZone.ondragover=e=>{e.preventDefault();dropZone.classList.add('dragover');};
+dropZone.ondragleave=()=>dropZone.classList.remove('dragover');
+dropZone.ondrop=e=>{
   e.preventDefault();
   dropZone.classList.remove('dragover');
   handleFiles(e.dataTransfer.files);
 };
 
-fileInput.onchange = () => handleFiles(fileInput.files);
+fileInput.onchange=()=>handleFiles(fileInput.files);
 
-function handleFiles(files) {
-  [...files].forEach(file => {
-    const canvas = document.createElement('canvas');
+function handleFiles(files){
+  [...files].forEach(file=>{
+    const canvas=document.createElement('canvas');
     grid.appendChild(makeThumb(canvas));
-    items.push({ file, canvas });
+    items.push({file,canvas});
   });
   renderAll();
 }
 
-function makeThumb(canvas) {
-  const wrap = document.createElement('div');
-  wrap.className = 'thumb';
-
-  const btn = document.createElement('button');
-  btn.textContent = '×';
-  btn.onclick = () => {
-    wrap.remove();
-    items = items.filter(i => i.canvas !== canvas);
-  };
-
-  wrap.append(btn, canvas);
-  return wrap;
+function makeThumb(canvas){
+  const w=document.createElement('div');
+  w.className='thumb';
+  const b=document.createElement('button');
+  b.textContent='×';
+  b.onclick=()=>{w.remove();items=items.filter(i=>i.canvas!==canvas);};
+  w.append(b,canvas);
+  return w;
 }
 
 /* ---------- RENDER ---------- */
-outlineWidth.oninput = outlineColor.oninput = renderAll;
+[outlineWidth,outlineColor,removeBg,threshold].forEach(i=>i.oninput=renderAll);
 
-function renderAll() {
-  if (!items.length) return;
-  progressBar.style.width = '0%';
-
-  items.forEach((item, i) => {
+function renderAll(){
+  if(!items.length) return;
+  progressBar.style.width='0%';
+  items.forEach((item,i)=>{
     worker.postMessage({
-      file: item.file,
-      index: i,
-      width: +outlineWidth.value,
-      color: outlineColor.value
+      file:item.file,
+      index:i,
+      width:+outlineWidth.value,
+      color:outlineColor.value,
+      removeBg:removeBg.checked,
+      threshold:+threshold.value
     });
   });
 }
 
-worker.onmessage = e => {
-  const { blob, index } = e.data;
-  const img = new Image();
-  img.onload = () => {
-    const c = items[index].canvas;
-    c.width = img.width;
-    c.height = img.height;
-    c.getContext('2d').drawImage(img, 0, 0);
-    progressBar.style.width =
-      ((index + 1) / items.length * 100) + '%';
+worker.onmessage=e=>{
+  const {blob,index}=e.data;
+  const img=new Image();
+  img.onload=()=>{
+    const c=items[index].canvas;
+    c.width=img.width;
+    c.height=img.height;
+    c.getContext('2d').drawImage(img,0,0);
+    progressBar.style.width=((index+1)/items.length*100)+'%';
   };
-  img.src = URL.createObjectURL(blob);
+  img.src=URL.createObjectURL(blob);
 };
 
-/* ---------- DOWNLOAD (NO ZIP) ---------- */
-document.getElementById('download').onclick = () => {
-  items.forEach(item => {
-    const a = document.createElement('a');
-    a.href = item.canvas.toDataURL('image/png');
-    a.download =
-      item.file.name.replace(/\..+$/, '') + '_outlined.png';
-    document.body.appendChild(a);
+/* ---------- DOWNLOAD ---------- */
+download.onclick=()=>{
+  items.forEach(item=>{
+    const a=document.createElement('a');
+    a.href=item.canvas.toDataURL('image/png');
+    a.download=item.file.name.replace(/\..+$/,'')+'_outlined.png';
     a.click();
-    a.remove();
   });
 };
 </script>
