@@ -5,112 +5,109 @@
 <title>Smart Multi-Object Outline Tool</title>
 <style>
 body {
-  font-family: system-ui, sans-serif;
-  background:#f0f2f5;
-  padding:24px;
-  color:#111827;
-  margin:0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #f0f2f5;
+  margin: 0;
+  padding: 24px;
+  color: #111827;
 }
-h1 { margin-bottom:4px; font-size:1.8rem; }
-p { color:#6b7280; margin-top:0 0 20px; }
+h1 { font-size: 2rem; margin-bottom: 4px; }
+p { color: #6b7280; margin-bottom: 20px; }
 
 .container {
-  display:grid;
-  grid-template-columns:1fr 340px;
-  gap:24px;
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 24px;
 }
 
 .panel {
-  background:white;
-  border-radius:16px;
-  padding:20px;
-  box-shadow:0 8px 20px rgba(0,0,0,.08);
-  border:1px solid #e5e7eb;
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  border: 1px solid #e5e7eb;
 }
 
 .upload {
-  border:2px dashed #d1d5db;
-  padding:40px;
-  text-align:center;
-  border-radius:12px;
-  cursor:pointer;
-  transition:.2s;
-  background:white;
+  border: 2px dashed #d1d5db;
+  padding: 40px;
+  text-align: center;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.2s;
+  background: white;
 }
-.upload.dragover {
-  background:#eef2ff;
-  border-color:#6366f1;
-}
+.upload.dragover { background: #eef2ff; border-color: #6366f1; }
 
 .grid {
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
-  gap:16px;
-  margin-top:16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(140px,1fr));
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .thumb {
-  background:#fff;
-  border-radius:10px;
-  padding:6px;
-  position:relative;
-  border:1px solid #e5e7eb;
-  transition:.2s;
+  background: #fff;
+  border-radius: 12px;
+  padding: 6px;
+  position: relative;
+  border: 1px solid #e5e7eb;
+  transition: 0.2s;
 }
-.thumb:hover { transform:translateY(-2px); box-shadow:0 6px 14px rgba(0,0,0,.08); }
+.thumb:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,.08); }
 
 .thumb button {
-  position:absolute;
-  top:4px;
-  right:4px;
-  background:#ef4444;
-  color:white;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 canvas {
-  width:100%;
-  border-radius:6px;
-  display:block;
-  background:repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50%/20px 20px;
+  width: 100%;
+  border-radius: 8px;
+  display: block;
+  background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50%/20px 20px;
 }
 
-label { font-weight:600; display:block; margin-top:14px; }
-input, select { width:100%; margin-top:6px; }
+label { font-weight: 600; display: block; margin-top: 14px; }
+input { width: 100%; margin-top: 6px; }
 
-.toggle { display:flex; align-items:center; gap:8px; margin-top:12px; }
+.toggle { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 
 .progress {
-  height:8px;
-  background:#e5e7eb;
-  border-radius:999px;
-  overflow:hidden;
-  margin-top:12px;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 12px;
 }
-.progress div { height:100%; width:0%; background:#6366f1; transition:.2s; }
+.progress div { height: 100%; width: 0%; background: #6366f1; transition: 0.2s; }
 
 button.main {
-  margin-top:16px;
-  width:100%;
-  padding:12px;
-  font-weight:600;
-  background:linear-gradient(90deg,#6366f1,#818cf8);
-  color:white;
-  border-radius:8px;
-  border:none;
-  cursor:pointer;
-  font-size:1rem;
-  transition:.2s;
+  margin-top: 16px;
+  width: 100%;
+  padding: 14px;
+  font-weight: 600;
+  background: linear-gradient(90deg,#6366f1,#818cf8);
+  color: white;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: 0.2s;
 }
-button.main:hover { filter:brightness(1.1); }
+button.main:hover { filter: brightness(1.1); }
 </style>
 </head>
 <body>
 
 <h1>Smart Multi-Object Outline Tool</h1>
-<p>Removes background, keeps all main objects, supports multiple images, cleaner UI</p>
+<p>Automatically detects and keeps all main objects, removes background noise, draws solid outlines.</p>
 
 <div class="container">
 
@@ -132,16 +129,12 @@ button.main:hover { filter:brightness(1.1); }
 
   <div class="toggle">
     <input type="checkbox" id="removeBg" checked>
-    <label for="removeBg">Remove background and keep main objects</label>
+    <label for="removeBg">Remove background and keep all main objects</label>
   </div>
-
-  <label>Minimum Object Size (%)</label>
-  <input type="range" id="minSize" min="0.1" max="5" value="0.5" step="0.1">
-  <small id="minSizeLabel">0.5% of image area</small>
 
   <div class="toggle">
     <input type="checkbox" id="checkerboard" checked>
-    <label for="checkerboard">Checkerboard background preview</label>
+    <label for="checkerboard">Checkerboard transparency preview</label>
   </div>
 
   <div class="progress"><div id="progress"></div></div>
@@ -160,22 +153,15 @@ const progressBar = document.getElementById('progress');
 const outlineWidth = document.getElementById('width');
 const outlineColor = document.getElementById('color');
 const removeBg = document.getElementById('removeBg');
-const minSize = document.getElementById('minSize');
-const minSizeLabel = document.getElementById('minSizeLabel');
 const checkerboard = document.getElementById('checkerboard');
 
 let items = new Map();
 let renderToken = 0;
 
-minSize.oninput = ()=>{
-  minSizeLabel.textContent = minSize.value + '% of image area';
-  renderAll();
-};
-
 /* ---------- WORKER ---------- */
 const worker = new Worker(URL.createObjectURL(new Blob([`
 self.onmessage = async e => {
-  const { file, id, width, color, removeBg, minSizePercent, token } = e.data;
+  const { file, id, width, color, removeBg, token } = e.data;
   const img = await createImageBitmap(file);
   const w = img.width, h = img.height;
   const area = w*h;
@@ -192,18 +178,18 @@ self.onmessage = async e => {
     const components = [];
     const stack = [];
     const idx = (x,y)=>y*w+x;
-    const minSize = area*(minSizePercent/100);
+    const minSize = area*0.001; // automatically remove tiny dots (0.1% of image)
 
     for(let y=0;y<h;y++){
       for(let x=0;x<w;x++){
-        const i=idx(x,y);
+        const i = idx(x,y);
         if(visited[i]) continue;
-        const mask=[];
+        const mask = [];
         stack.push(i); visited[i]=1;
         while(stack.length){
-          const p=stack.pop();
+          const p = stack.pop();
           mask.push(p);
-          const px=p%w, py=(p/w)|0;
+          const px = p%w, py=(p/w)|0;
           [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
             const nx=px+dx, ny=py+dy;
             if(nx<0||ny<0||nx>=w||ny>=h) return;
@@ -218,9 +204,7 @@ self.onmessage = async e => {
       }
     }
 
-    // clear all
     for(let i=0;i<d.length;i+=4) d[i+3]=0;
-    // restore components
     components.forEach(mask=>mask.forEach(p=>d[p*4+3]=255));
     ctx.putImageData(data,0,0);
   }
@@ -248,22 +232,19 @@ self.onmessage = async e => {
 
 /* ---------- UPLOAD ---------- */
 dropZone.onclick=()=>fileInput.click();
-dropZone.ondragover=e=>{e.preventDefault();dropZone.classList.add('dragover');};
+dropZone.ondragover=e=>{e.preventDefault(); dropZone.classList.add('dragover');};
 dropZone.ondragleave=()=>dropZone.classList.remove('dragover');
-dropZone.ondrop=e=>{e.preventDefault();dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files);};
+dropZone.ondrop=e=>{e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files);};
 fileInput.onchange=()=>handleFiles(fileInput.files);
 
 function handleFiles(files){
   [...files].forEach(file=>{
     const id = crypto.randomUUID();
     const canvas = document.createElement('canvas');
-    if(checkerboard.checked) canvas.style.background='repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50%/20px 20px';
-    else canvas.style.background='white';
-
-    const wrap = document.createElement('div');
-    wrap.className='thumb';
-    const b = document.createElement('button');
-    b.textContent='×';
+    canvas.style.background = checkerboard.checked ? 
+      'repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50%/20px 20px' : 'white';
+    const wrap = document.createElement('div'); wrap.className='thumb';
+    const b = document.createElement('button'); b.textContent='×';
     b.onclick=()=>{items.delete(id); wrap.remove(); renderAll();};
     wrap.append(b,canvas);
     grid.appendChild(wrap);
@@ -273,7 +254,7 @@ function handleFiles(files){
 }
 
 /* ---------- RENDER ---------- */
-[outlineWidth,outlineColor,removeBg,minSize,checkerboard].forEach(i=>i.oninput=renderAll);
+[outlineWidth,outlineColor,removeBg,checkerboard].forEach(i=>i.oninput=renderAll);
 
 function renderAll(){
   renderToken++;
@@ -282,16 +263,14 @@ function renderAll(){
   progressBar.style.width='0%';
 
   items.forEach((item,id)=>{
-    if(checkerboard.checked) item.canvas.style.background='repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50%/20px 20px';
-    else item.canvas.style.background='white';
-
+    item.canvas.style.background = checkerboard.checked ? 
+      'repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50%/20px 20px' : 'white';
     worker.postMessage({
       id, token,
-      file: item.file,
-      width: +outlineWidth.value,
-      color: outlineColor.value,
-      removeBg: removeBg.checked,
-      minSizePercent: +minSize.value
+      file:item.file,
+      width:+outlineWidth.value,
+      color:outlineColor.value,
+      removeBg:removeBg.checked
     });
   });
 
@@ -315,7 +294,7 @@ function renderAll(){
 download.onclick=()=>{
   items.forEach(item=>{
     const a=document.createElement('a');
-    a.href = item.canvas.toDataURL('image/png');
+    a.href=item.canvas.toDataURL('image/png');
     a.download = item.file.name.replace(/\..+$/,'')+'_outlined.png';
     a.click();
   });
