@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Image Outline Tool (Fixed)</title>
+<title>Image Outline Tool (Object-Focused)</title>
 
 <style>
 body {
@@ -111,7 +111,7 @@ button.main {
 <body>
 
 <h1>Image Outline Tool</h1>
-<p>Background removal → solid outline (fixed)</p>
+<p>Keeps main object • removes floating junk • solid outline</p>
 
 <div class="container">
 
@@ -133,11 +133,8 @@ button.main {
 
   <div class="toggle">
     <input type="checkbox" id="removeBg" checked>
-    <label for="removeBg">Remove background</label>
+    <label for="removeBg">Keep main object only</label>
   </div>
-
-  <label>Background Threshold</label>
-  <input type="range" id="threshold" min="5" max="80" value="25">
 
   <div class="progress"><div id="progress"></div></div>
 
@@ -155,7 +152,6 @@ const progressBar = document.getElementById('progress');
 const outlineWidth = document.getElementById('width');
 const outlineColor = document.getElementById('color');
 const removeBg = document.getElementById('removeBg');
-const threshold = document.getElementById('threshold');
 
 let items = new Map();
 let renderToken = 0;
@@ -163,58 +159,85 @@ let renderToken = 0;
 /* ---------- WORKER ---------- */
 const worker = new Worker(URL.createObjectURL(new Blob([`
 self.onmessage = async e => {
-  const { file, id, width, color, removeBg, threshold, token } = e.data;
+  const { file, id, width, color, removeBg, token } = e.data;
   const img = await createImageBitmap(file);
 
   const w = img.width, h = img.height;
   const base = new OffscreenCanvas(w,h);
-  const bctx = base.getContext('2d');
-  bctx.drawImage(img,0,0);
+  const ctx = base.getContext('2d');
+  ctx.drawImage(img,0,0);
 
   if (removeBg) {
-    const imgData = bctx.getImageData(0,0,w,h);
+    const imgData = ctx.getImageData(0,0,w,h);
     const d = imgData.data;
+    const visited = new Uint8Array(w*h);
 
-    const samples = [
-      0,
-      (w-1)*4,
-      (h-1)*w*4,
-      ((h-1)*w + (w-1))*4
-    ];
+    let bestCount = 0;
+    let bestMask = null;
 
-    let bg = [0,0,0];
-    samples.forEach(i=>{
-      bg[0]+=d[i];
-      bg[1]+=d[i+1];
-      bg[2]+=d[i+2];
-    });
-    bg = bg.map(v=>v/4);
+    const stack = [];
 
-    for (let i=0;i<d.length;i+=4) {
-      const dr=d[i]-bg[0];
-      const dg=d[i+1]-bg[1];
-      const db=d[i+2]-bg[2];
-      if (Math.sqrt(dr*dr+dg*dg+db*db)<threshold)
-        d[i+3]=0;
+    const idx = (x,y)=>y*w+x;
+
+    for (let y=0;y<h;y++) {
+      for (let x=0;x<w;x++) {
+        const i = idx(x,y);
+        if (visited[i]) continue;
+        if (d[i*4+3] < 10) { visited[i]=1; continue; }
+
+        let count = 0;
+        const mask = [];
+        stack.push(i);
+        visited[i]=1;
+
+        while (stack.length) {
+          const p = stack.pop();
+          mask.push(p);
+          count++;
+
+          const px = p % w;
+          const py = (p / w) | 0;
+
+          [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
+            const nx=px+dx, ny=py+dy;
+            if(nx<0||ny<0||nx>=w||ny>=h) return;
+            const ni = idx(nx,ny);
+            if (!visited[ni] && d[ni*4+3] >= 10) {
+              visited[ni]=1;
+              stack.push(ni);
+            }
+          });
+        }
+
+        if (count > bestCount) {
+          bestCount = count;
+          bestMask = mask;
+        }
+      }
     }
-    bctx.putImageData(imgData,0,0);
+
+    // clear everything
+    for (let i=0;i<d.length;i+=4) d[i+3]=0;
+    // restore main object
+    bestMask?.forEach(p=>d[p*4+3]=255);
+    ctx.putImageData(imgData,0,0);
   }
 
   const pad = width;
   const out = new OffscreenCanvas(w+pad*2,h+pad*2);
-  const ctx = out.getContext('2d');
+  const octx = out.getContext('2d');
 
   for (let y=-width;y<=width;y++)
     for (let x=-width;x<=width;x++)
       if (x*x+y*y<=width*width)
-        ctx.drawImage(base,pad+x,pad+y);
+        octx.drawImage(base,pad+x,pad+y);
 
-  ctx.globalCompositeOperation='source-in';
-  ctx.fillStyle=color;
-  ctx.fillRect(0,0,out.width,out.height);
+  octx.globalCompositeOperation='source-in';
+  octx.fillStyle=color;
+  octx.fillRect(0,0,out.width,out.height);
 
-  ctx.globalCompositeOperation='source-over';
-  ctx.drawImage(base,pad,pad);
+  octx.globalCompositeOperation='source-over';
+  octx.drawImage(base,pad,pad);
 
   const blob = await out.convertToBlob({type:'image/png'});
   self.postMessage({id,blob,token});
@@ -230,49 +253,40 @@ dropZone.ondrop=e=>{
   dropZone.classList.remove('dragover');
   handleFiles(e.dataTransfer.files);
 };
-
 fileInput.onchange=()=>handleFiles(fileInput.files);
 
 function handleFiles(files){
   [...files].forEach(file=>{
-    const id = crypto.randomUUID();
+    const id=crypto.randomUUID();
     const canvas=document.createElement('canvas');
-    const wrap=makeThumb(id,canvas);
+    const wrap=document.createElement('div');
+    wrap.className='thumb';
+    const b=document.createElement('button');
+    b.textContent='×';
+    b.onclick=()=>{items.delete(id);wrap.remove();renderAll();};
+    wrap.append(b,canvas);
     grid.appendChild(wrap);
     items.set(id,{file,canvas});
   });
   renderAll();
 }
 
-function makeThumb(id,canvas){
-  const w=document.createElement('div');
-  w.className='thumb';
-  const b=document.createElement('button');
-  b.textContent='×';
-  b.onclick=()=>{items.delete(id);w.remove();renderAll();};
-  w.append(b,canvas);
-  return w;
-}
-
 /* ---------- RENDER ---------- */
-[outlineWidth,outlineColor,removeBg,threshold].forEach(i=>i.oninput=renderAll);
+[outlineWidth,outlineColor,removeBg].forEach(i=>i.oninput=renderAll);
 
 function renderAll(){
   renderToken++;
-  const token = renderToken;
-  const total = items.size;
-  let done = 0;
+  const token=renderToken;
+  let done=0;
   progressBar.style.width='0%';
 
   items.forEach((item,id)=>{
     worker.postMessage({
-      id,
-      token,
+      id, token,
       file:item.file,
       width:+outlineWidth.value,
       color:outlineColor.value,
-      removeBg:removeBg.checked,
-      threshold:+threshold.value
+      removeBg:removeBg.checked
     });
   });
 
@@ -287,7 +301,7 @@ function renderAll(){
       item.canvas.height=img.height;
       item.canvas.getContext('2d').drawImage(img,0,0);
       done++;
-      progressBar.style.width=(done/total*100)+'%';
+      progressBar.style.width=(done/items.size*100)+'%';
     };
     img.src=URL.createObjectURL(e.data.blob);
   };
