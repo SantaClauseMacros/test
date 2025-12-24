@@ -107,7 +107,7 @@ button.main:hover { filter: brightness(1.1); }
 <body>
 
 <h1>Smart Multi-Object Outline Tool</h1>
-<p>Automatically detects and keeps all main objects, removes background noise, draws solid outlines.</p>
+<p>Automatically detects all main objects, removes background noise, draws solid outlines. Downloads incrementally.</p>
 
 <div class="container">
 
@@ -178,7 +178,7 @@ self.onmessage = async e => {
     const components = [];
     const stack = [];
     const idx = (x,y)=>y*w+x;
-    const minSize = area*0.001; // automatically remove tiny dots (0.1% of image)
+    const minSize = area*0.001; // automatically remove tiny noise
 
     for(let y=0;y<h;y++){
       for(let x=0;x<w;x++){
@@ -290,14 +290,26 @@ function renderAll(){
   };
 }
 
-/* ---------- DOWNLOAD ---------- */
-download.onclick=()=>{
-  items.forEach(item=>{
-    const a=document.createElement('a');
-    a.href=item.canvas.toDataURL('image/png');
-    a.download = item.file.name.replace(/\..+$/,'')+'_outlined.png';
-    a.click();
-  });
+/* ---------- INCREMENTAL DOWNLOAD ---------- */
+download.onclick = () => {
+  const allItems = Array.from(items.values());
+  let i = 0;
+
+  function downloadNextBatch() {
+    const batch = allItems.slice(i, i + 5); // 5 images at a time
+    batch.forEach(item => {
+      const a = document.createElement('a');
+      a.href = item.canvas.toDataURL('image/png');
+      a.download = item.file.name.replace(/\..+$/,'')+'_outlined.png';
+      a.click();
+    });
+    i += 5;
+    if (i < allItems.length) {
+      setTimeout(downloadNextBatch, 1000); // wait 1 second before next batch
+    }
+  }
+
+  downloadNextBatch();
 };
 </script>
 </body>
