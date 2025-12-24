@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <title>Smart Auto Image Editor Tool</title>
+
 <style>
 body {
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: system-ui, sans-serif;
   background: #f0f2f5;
-  margin: 0;
   padding: 24px;
-  color: #111827;
+  margin: 0;
 }
-h1 { font-size: 2rem; margin-bottom: 4px; }
-p { color: #6b7280; margin-bottom: 20px; }
+h1 { margin-bottom: 4px; }
+p { color: #6b7280; }
 
 .container {
   display: grid;
@@ -22,45 +22,41 @@ p { color: #6b7280; margin-bottom: 20px; }
 
 .panel {
   background: white;
+  padding: 20px;
   border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.08);
   border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 20px rgba(0,0,0,.08);
 }
 
 .upload {
-  border: 2px dashed #d1d5db;
+  border: 2px dashed #c7c7c7;
   padding: 40px;
   text-align: center;
   border-radius: 12px;
   cursor: pointer;
-  transition: 0.2s;
-  background: white;
 }
-.upload.dragover { background: #eef2ff; border-color: #6366f1; }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill,minmax(140px,1fr));
-  gap: 16px;
-  margin-top: 16px;
+  gap: 14px;
+  margin-top: 14px;
 }
 
 .thumb {
-  background: #fff;
+  position: relative;
   border-radius: 12px;
   padding: 6px;
-  position: relative;
   border: 1px solid #e5e7eb;
-  transition: 0.2s;
+  cursor: pointer;
+  background: white;
 }
-.thumb:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,.08); }
 
 .thumb button {
   position: absolute;
   top: 4px;
   right: 4px;
-  background: #ef4444;
+  background: red;
   color: white;
   border: none;
   border-radius: 6px;
@@ -69,279 +65,245 @@ p { color: #6b7280; margin-bottom: 20px; }
 
 canvas {
   width: 100%;
-  border-radius: 8px;
   display: block;
+  border-radius: 8px;
   background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50%/20px 20px;
 }
 
-label { font-weight: 600; display: block; margin-top: 14px; }
+label { font-weight: 600; margin-top: 12px; display: block; }
 input { width: 100%; margin-top: 6px; }
 
-.toggle { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
-
-.progress {
-  height: 8px;
-  background: #e5e7eb;
-  border-radius: 999px;
-  overflow: hidden;
-  margin-top: 12px;
-}
-.progress div { height: 100%; width: 0%; background: #6366f1; transition: 0.2s; }
+.toggle { display: flex; gap: 8px; margin-top: 10px; }
 
 button.main {
   margin-top: 16px;
   width: 100%;
   padding: 14px;
-  font-weight: 600;
-  background: linear-gradient(90deg,#6366f1,#818cf8);
-  color: white;
   border-radius: 10px;
   border: none;
+  background: #6366f1;
+  color: white;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 1rem;
-  transition: 0.2s;
 }
-button.main:hover { filter: brightness(1.1); }
+
+.progress {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+.progress div {
+  height: 100%;
+  width: 0%;
+  background: #6366f1;
+}
+.editor {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.editor.active { display: flex; }
+
+.editor-box {
+  background: white;
+  width: 90%;
+  max-width: 1000px;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.editor-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.editor-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.editor canvas {
+  width: 100%;
+  border-radius: 8px;
+}
+
+.editor-controls {
+  display: grid;
+  gap: 8px;
+}
 </style>
 </head>
+
 <body>
 
 <h1>Smart Auto Image Editor Tool</h1>
-<p>Automatically detects all main objects, removes background, draws solid outlines, and optionally crops around content.</p>
+<p>Auto background removal, outlines, cropping, editing & resizing.</p>
 
 <div class="container">
 
 <div class="panel">
   <div class="upload" id="dropZone">
-    <strong>Drop images or click</strong><br>
-    <small>PNG, JPG, WEBP</small>
+    <strong>Drop images or click</strong>
     <input type="file" id="fileInput" hidden multiple accept="image/*">
   </div>
   <div class="grid" id="grid"></div>
 </div>
 
 <div class="panel">
-  <label>Outline Width (px)</label>
-  <input type="number" id="width" value="25" min="1" max="150">
+  <label>Outline Width</label>
+  <input type="number" id="width" value="25">
 
   <label>Outline Color</label>
   <input type="color" id="color" value="#000000">
 
   <div class="toggle">
     <input type="checkbox" id="removeBg" checked>
-    <label for="removeBg">Remove background and keep all main objects</label>
+    <label>Remove Background</label>
   </div>
 
   <div class="toggle">
-    <input type="checkbox" id="cropEnabled" checked>
-    <label for="cropEnabled">Enable auto-cropping</label>
-  </div>
-
-  <div class="toggle">
-    <input type="checkbox" id="checkerboard" checked>
-    <label for="checkerboard">Checkerboard transparency preview</label>
+    <input type="checkbox" id="crop" checked>
+    <label>Auto Crop (Centered)</label>
   </div>
 
   <div class="progress"><div id="progress"></div></div>
 
-  <button class="main" id="download">Download All Images</button>
+  <button class="main" id="download">Download All</button>
 </div>
 
+</div>
+
+<!-- EDITOR -->
+<div class="editor" id="editor">
+  <div class="editor-box">
+    <div class="editor-top">
+      <strong>Edit Image</strong>
+      <button onclick="closeEditor()">✕</button>
+    </div>
+
+    <div class="editor-body">
+      <canvas id="editCanvas"></canvas>
+      <canvas id="previewCanvas"></canvas>
+    </div>
+
+    <div class="editor-controls">
+      <label>Brush Size</label>
+      <input type="range" id="brush" min="5" max="80" value="30">
+
+      <div class="toggle">
+        <input type="radio" name="mode" id="erase" checked>
+        <label>Erase</label>
+        <input type="radio" name="mode" id="restore">
+        <label>Restore</label>
+      </div>
+
+      <label>Resize (%)</label>
+      <input type="range" id="resize" min="25" max="200" value="100">
+
+      <button onclick="resetEdit()">Reset</button>
+      <button onclick="applyEdit()">Apply</button>
+    </div>
+  </div>
 </div>
 
 <script>
 const grid = document.getElementById('grid');
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const progressBar = document.getElementById('progress');
+const items = [];
+let active = null;
+let originalImg = null;
 
-const outlineWidth = document.getElementById('width');
-const outlineColor = document.getElementById('color');
-const removeBg = document.getElementById('removeBg');
-const cropEnabled = document.getElementById('cropEnabled');
-const checkerboard = document.getElementById('checkerboard');
+const editor = document.getElementById('editor');
+const editCanvas = document.getElementById('editCanvas');
+const previewCanvas = document.getElementById('previewCanvas');
+const ectx = editCanvas.getContext('2d');
+const pctx = previewCanvas.getContext('2d');
 
-let items = new Map();
-let renderToken = 0;
+dropZone.onclick = () => fileInput.click();
+fileInput.onchange = () => addFiles(fileInput.files);
 
-/* ---------- WORKER ---------- */
-const worker = new Worker(URL.createObjectURL(new Blob([`
-self.onmessage = async e => {
-  const { file, id, width, color, removeBg, cropEnabled, token } = e.data;
-  const img = await createImageBitmap(file);
-  const w = img.width, h = img.height;
-  const area = w*h;
-
-  const base = new OffscreenCanvas(w,h);
-  const ctx = base.getContext('2d');
-  ctx.drawImage(img,0,0);
-
-  if(removeBg){
-    const data = ctx.getImageData(0,0,w,h);
-    const d = data.data;
-    const visited = new Uint8Array(w*h);
-    for(let i=0;i<w*h;i++) visited[i]=(d[i*4+3]>10?0:1);
-
-    const components = [];
-    const stack = [];
-    const idx = (x,y)=>y*w+x;
-    const minSize = area*0.001;
-
-    for(let y=0;y<h;y++){
-      for(let x=0;x<w;x++){
-        const i = idx(x,y);
-        if(visited[i]) continue;
-        const mask = [];
-        stack.push(i); visited[i]=1;
-        while(stack.length){
-          const p = stack.pop();
-          mask.push(p);
-          const px = p%w, py=(p/w)|0;
-          [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
-            const nx=px+dx, ny=py+dy;
-            if(nx<0||ny<0||nx>=w||ny>=h) return;
-            const ni = idx(nx,ny);
-            if(!visited[ni]){
-              visited[ni]=1;
-              stack.push(ni);
-            }
-          });
-        }
-        if(mask.length>=minSize) components.push(mask);
-      }
-    }
-
-    for(let i=0;i<d.length;i+=4) d[i+3]=0;
-    components.forEach(mask=>mask.forEach(p=>d[p*4+3]=255));
-    ctx.putImageData(data,0,0);
-  }
-
-  let minX=0, minY=0, cropW=w, cropH=h;
-  if(cropEnabled){
-    const imgData = ctx.getImageData(0,0,w,h);
-    minX=w; minY=h; let maxX=0, maxY=0;
-    for(let y=0;y<h;y++){
-      for(let x=0;x<w;x++){
-        const a = imgData.data[(y*w+x)*4+3];
-        if(a>0){
-          if(x<minX) minX=x;
-          if(y<minY) minY=y;
-          if(x>maxX) maxX=x;
-          if(y>maxY) maxY=y;
-        }
-      }
-    }
-    if(maxX>=minX && maxY>=minY){
-      cropW = maxX - minX + 1;
-      cropH = maxY - minY + 1;
-    }
-  }
-
-  const pad = width;
-  const out = new OffscreenCanvas(cropW+pad*2, cropH+pad*2);
-  const octx = out.getContext('2d');
-
-  const tmp = new OffscreenCanvas(cropW, cropH);
-  const tctx = tmp.getContext('2d');
-  tctx.drawImage(base, -minX, -minY, w, h, 0,0,cropW,cropH);
-
-  for(let y=-width;y<=width;y++)
-    for(let x=-width;x<=width;x++)
-      if(x*x+y*y<=width*width)
-        octx.drawImage(tmp,pad+x,pad+y);
-
-  octx.globalCompositeOperation='source-in';
-  octx.fillStyle=color;
-  octx.fillRect(0,0,out.width,out.height);
-
-  octx.globalCompositeOperation='source-over';
-  octx.drawImage(tmp,pad,pad);
-
-  const blob = await out.convertToBlob({type:'image/png'});
-  self.postMessage({id,blob,token});
-};
-`],{type:'application/javascript'})));
-
-/* ---------- UPLOAD ---------- */
-dropZone.onclick=()=>fileInput.click();
-dropZone.ondragover=e=>{e.preventDefault(); dropZone.classList.add('dragover');};
-dropZone.ondragleave=()=>dropZone.classList.remove('dragover');
-dropZone.ondrop=e=>{e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files);};
-fileInput.onchange=()=>handleFiles(fileInput.files);
-
-function handleFiles(files){
-  [...files].forEach(file=>{
-    const id = crypto.randomUUID();
+function addFiles(files) {
+  [...files].forEach(file => {
     const canvas = document.createElement('canvas');
-    canvas.style.background = checkerboard.checked ? 
-      'repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50%/20px 20px' : 'white';
-    const wrap = document.createElement('div'); wrap.className='thumb';
-    const b = document.createElement('button'); b.textContent='×';
-    b.onclick=()=>{items.delete(id); wrap.remove(); renderAll();};
-    wrap.append(b,canvas);
+    const wrap = document.createElement('div');
+    wrap.className = 'thumb';
+    const del = document.createElement('button');
+    del.textContent = '×';
+    del.onclick = e => { e.stopPropagation(); wrap.remove(); };
+    wrap.append(del, canvas);
+    wrap.onclick = () => openEditor(canvas);
     grid.appendChild(wrap);
-    items.set(id,{file,canvas});
-  });
-  renderAll();
-}
 
-/* ---------- RENDER ---------- */
-[outlineWidth,outlineColor,removeBg,checkerboard,cropEnabled].forEach(i=>i.oninput=renderAll);
-
-function renderAll(){
-  renderToken++;
-  const token = renderToken;
-  let done = 0;
-  progressBar.style.width='0%';
-
-  items.forEach((item,id)=>{
-    item.canvas.style.background = checkerboard.checked ? 
-      'repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50%/20px 20px' : 'white';
-    worker.postMessage({
-      id, token,
-      file:item.file,
-      width:+outlineWidth.value,
-      color:outlineColor.value,
-      removeBg:removeBg.checked,
-      cropEnabled:cropEnabled.checked
-    });
-  });
-
-  worker.onmessage=e=>{
-    if(e.data.token!==renderToken) return;
-    const item = items.get(e.data.id);
-    if(!item) return;
     const img = new Image();
-    img.onload=()=>{
-      item.canvas.width=img.width;
-      item.canvas.height=img.height;
-      item.canvas.getContext('2d').drawImage(img,0,0);
-      done++;
-      progressBar.style.width=(done/items.size*100)+'%';
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      canvas.getContext('2d').drawImage(img,0,0);
     };
-    img.src = URL.createObjectURL(e.data.blob);
-  };
+    img.src = URL.createObjectURL(file);
+
+    items.push({file, canvas});
+  });
 }
 
-/* ---------- INCREMENTAL DOWNLOAD ---------- */
-document.getElementById('download').onclick = () => {
-  const allItems = Array.from(items.values());
-  let i = 0;
+function openEditor(canvas) {
+  active = canvas;
+  originalImg = new Image();
+  originalImg.onload = () => {
+    editCanvas.width = previewCanvas.width = originalImg.width;
+    editCanvas.height = previewCanvas.height = originalImg.height;
+    ectx.drawImage(originalImg,0,0);
+    pctx.drawImage(originalImg,0,0);
+    editor.classList.add('active');
+  };
+  originalImg.src = canvas.toDataURL();
+}
 
-  function downloadNextBatch() {
-    const batch = allItems.slice(i, i + 5);
-    batch.forEach(item => {
-      const a = document.createElement('a');
-      a.href = item.canvas.toDataURL('image/png');
-      a.download = item.file.name.replace(/\..+$/,'')+'_outlined.png';
-      a.click();
-    });
-    i += 5;
-    if (i < allItems.length) setTimeout(downloadNextBatch, 1000);
-  }
-
-  downloadNextBatch();
+let draw = false;
+editCanvas.onpointerdown = () => draw = true;
+editCanvas.onpointerup = () => draw = false;
+editCanvas.onpointermove = e => {
+  if(!draw) return;
+  const r = editCanvas.getBoundingClientRect();
+  const x = (e.clientX - r.left) * editCanvas.width / r.width;
+  const y = (e.clientY - r.top) * editCanvas.height / r.height;
+  ectx.globalCompositeOperation = erase.checked ? 'destination-out' : 'source-over';
+  ectx.beginPath();
+  ectx.arc(x,y,brush.value,0,Math.PI*2);
+  ectx.fill();
+  pctx.clearRect(0,0,previewCanvas.width,previewCanvas.height);
+  pctx.drawImage(editCanvas,0,0);
 };
+
+resize.oninput = () => {
+  const s = resize.value / 100;
+  editCanvas.width = previewCanvas.width = originalImg.width * s;
+  editCanvas.height = previewCanvas.height = originalImg.height * s;
+  ectx.drawImage(originalImg,0,0,editCanvas.width,editCanvas.height);
+  pctx.drawImage(editCanvas,0,0);
+};
+
+function resetEdit() {
+  ectx.drawImage(originalImg,0,0);
+}
+function applyEdit() {
+  active.width = editCanvas.width;
+  active.height = editCanvas.height;
+  active.getContext('2d').drawImage(editCanvas,0,0);
+  closeEditor();
+}
+function closeEditor() {
+  editor.classList.remove('active');
+}
 </script>
+
 </body>
 </html>
