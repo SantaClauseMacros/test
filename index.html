@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Smart Multi-Object Outline Tool</title>
+<title>Smart Auto-Crop Outline Tool</title>
 <style>
 body {
   font-family: 'Segoe UI', system-ui, sans-serif;
@@ -106,8 +106,8 @@ button.main:hover { filter: brightness(1.1); }
 </head>
 <body>
 
-<h1>Smart Multi-Object Outline Tool</h1>
-<p>Automatically detects all main objects, removes background noise, draws solid outlines. Downloads incrementally.</p>
+<h1>Smart Auto-Crop Outline Tool</h1>
+<p>Automatically detects all main objects, removes background noise, draws solid outlines, and crops tightly around content.</p>
 
 <div class="container">
 
@@ -165,10 +165,13 @@ self.onmessage = async e => {
   const img = await createImageBitmap(file);
   const w = img.width, h = img.height;
   const area = w*h;
+
+  // Step 1: Draw original image
   const base = new OffscreenCanvas(w,h);
   const ctx = base.getContext('2d');
   ctx.drawImage(img,0,0);
 
+  // Step 2: Remove small background noise
   if(removeBg){
     const data = ctx.getImageData(0,0,w,h);
     const d = data.data;
@@ -178,7 +181,7 @@ self.onmessage = async e => {
     const components = [];
     const stack = [];
     const idx = (x,y)=>y*w+x;
-    const minSize = area*0.001; // automatically remove tiny noise
+    const minSize = area*0.001; // auto-remove tiny dots
 
     for(let y=0;y<h;y++){
       for(let x=0;x<w;x++){
@@ -204,26 +207,54 @@ self.onmessage = async e => {
       }
     }
 
+    // Clear all and restore components
     for(let i=0;i<d.length;i+=4) d[i+3]=0;
     components.forEach(mask=>mask.forEach(p=>d[p*4+3]=255));
     ctx.putImageData(data,0,0);
   }
 
+  // Step 3: Find bounding box of all non-transparent pixels
+  const imgData = ctx.getImageData(0,0,w,h);
+  let minX=w, minY=h, maxX=0, maxY=0;
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const a = imgData.data[(y*w+x)*4+3];
+      if(a>0){
+        if(x<minX) minX=x;
+        if(y<minY) minY=y;
+        if(x>maxX) maxX=x;
+        if(y>maxY) maxY=y;
+      }
+    }
+  }
+  if(maxX<minX || maxY<minY){
+    minX=0; minY=0; maxX=w; maxY=h;
+  }
+
+  const cropW = maxX-minX+1;
+  const cropH = maxY-minY+1;
+
+  // Step 4: Draw outline
   const pad = width;
-  const out = new OffscreenCanvas(w+pad*2,h+pad*2);
+  const out = new OffscreenCanvas(cropW+pad*2, cropH+pad*2);
   const octx = out.getContext('2d');
+
+  // Draw shifted image multiple times for outline
+  const tmp = new OffscreenCanvas(cropW, cropH);
+  const tctx = tmp.getContext('2d');
+  tctx.drawImage(base, -minX, -minY, w, h, 0,0,cropW,cropH);
 
   for(let y=-width;y<=width;y++)
     for(let x=-width;x<=width;x++)
       if(x*x+y*y<=width*width)
-        octx.drawImage(base,pad+x,pad+y);
+        octx.drawImage(tmp,pad+x,pad+y);
 
   octx.globalCompositeOperation='source-in';
   octx.fillStyle=color;
   octx.fillRect(0,0,out.width,out.height);
 
   octx.globalCompositeOperation='source-over';
-  octx.drawImage(base,pad,pad);
+  octx.drawImage(tmp,pad,pad);
 
   const blob = await out.convertToBlob({type:'image/png'});
   self.postMessage({id,blob,token});
@@ -296,7 +327,7 @@ download.onclick = () => {
   let i = 0;
 
   function downloadNextBatch() {
-    const batch = allItems.slice(i, i + 5); // 5 images at a time
+    const batch = allItems.slice(i, i + 5);
     batch.forEach(item => {
       const a = document.createElement('a');
       a.href = item.canvas.toDataURL('image/png');
@@ -305,7 +336,7 @@ download.onclick = () => {
     });
     i += 5;
     if (i < allItems.length) {
-      setTimeout(downloadNextBatch, 1000); // wait 1 second before next batch
+      setTimeout(downloadNextBatch, 1000);
     }
   }
 
