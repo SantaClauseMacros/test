@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Image Outline Tool</title>
+<title>Image Outline Tool (Fixed)</title>
 
 <style>
 body {
@@ -11,13 +11,12 @@ body {
   padding:24px;
   color:#111827;
 }
-
 h1 { margin-bottom:4px; }
 p { color:#6b7280; margin-top:0; }
 
 .container {
   display:grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns:1fr 320px;
   gap:20px;
 }
 
@@ -42,7 +41,7 @@ p { color:#6b7280; margin-top:0; }
 
 .grid {
   display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px,1fr));
+  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
   gap:14px;
   margin-top:16px;
 }
@@ -54,6 +53,7 @@ p { color:#6b7280; margin-top:0; }
   position:relative;
   border:1px solid #e5e7eb;
 }
+
 .thumb button {
   position:absolute;
   top:4px;
@@ -71,15 +71,8 @@ canvas {
   border-radius:6px;
 }
 
-label {
-  font-weight:600;
-  display:block;
-  margin-top:14px;
-}
-input {
-  width:100%;
-  margin-top:6px;
-}
+label { font-weight:600; display:block; margin-top:14px; }
+input { width:100%; margin-top:6px; }
 
 .toggle {
   display:flex;
@@ -99,6 +92,7 @@ input {
   height:100%;
   width:0%;
   background:#6366f1;
+  transition:.2s;
 }
 
 button.main {
@@ -117,7 +111,7 @@ button.main {
 <body>
 
 <h1>Image Outline Tool</h1>
-<p>Optional background removal • Solid outlines</p>
+<p>Background removal → solid outline (fixed)</p>
 
 <div class="container">
 
@@ -139,7 +133,7 @@ button.main {
 
   <div class="toggle">
     <input type="checkbox" id="removeBg" checked>
-    <label for="removeBg">Remove background first</label>
+    <label for="removeBg">Remove background</label>
   </div>
 
   <label>Background Threshold</label>
@@ -163,141 +157,148 @@ const outlineColor = document.getElementById('color');
 const removeBg = document.getElementById('removeBg');
 const threshold = document.getElementById('threshold');
 
-let items = [];
+let items = new Map();
+let renderToken = 0;
 
 /* ---------- WORKER ---------- */
 const worker = new Worker(URL.createObjectURL(new Blob([`
 self.onmessage = async e => {
-  const { file, width, color, index, removeBg, threshold } = e.data;
+  const { file, id, width, color, removeBg, threshold, token } = e.data;
   const img = await createImageBitmap(file);
 
-  const w = img.width;
-  const h = img.height;
-
-  const base = new OffscreenCanvas(w, h);
+  const w = img.width, h = img.height;
+  const base = new OffscreenCanvas(w,h);
   const bctx = base.getContext('2d');
-  bctx.drawImage(img, 0, 0);
+  bctx.drawImage(img,0,0);
 
   if (removeBg) {
-    const imgData = bctx.getImageData(0, 0, w, h);
+    const imgData = bctx.getImageData(0,0,w,h);
     const d = imgData.data;
 
-    // sample top-left pixel as background
-    const bg = [d[0], d[1], d[2]];
+    const samples = [
+      0,
+      (w-1)*4,
+      (h-1)*w*4,
+      ((h-1)*w + (w-1))*4
+    ];
 
-    for (let i = 0; i < d.length; i += 4) {
-      const dr = d[i] - bg[0];
-      const dg = d[i+1] - bg[1];
-      const db = d[i+2] - bg[2];
-      if (Math.sqrt(dr*dr + dg*dg + db*db) < threshold) {
-        d[i+3] = 0;
-      }
+    let bg = [0,0,0];
+    samples.forEach(i=>{
+      bg[0]+=d[i];
+      bg[1]+=d[i+1];
+      bg[2]+=d[i+2];
+    });
+    bg = bg.map(v=>v/4);
+
+    for (let i=0;i<d.length;i+=4) {
+      const dr=d[i]-bg[0];
+      const dg=d[i+1]-bg[1];
+      const db=d[i+2]-bg[2];
+      if (Math.sqrt(dr*dr+dg*dg+db*db)<threshold)
+        d[i+3]=0;
     }
-    bctx.putImageData(imgData, 0, 0);
+    bctx.putImageData(imgData,0,0);
   }
 
   const pad = width;
-  const out = new OffscreenCanvas(w + pad*2, h + pad*2);
+  const out = new OffscreenCanvas(w+pad*2,h+pad*2);
   const ctx = out.getContext('2d');
 
-  for (let y = -width; y <= width; y++) {
-    for (let x = -width; x <= width; x++) {
-      if (x*x + y*y <= width*width) {
-        ctx.drawImage(base, pad + x, pad + y);
-      }
-    }
-  }
+  for (let y=-width;y<=width;y++)
+    for (let x=-width;x<=width;x++)
+      if (x*x+y*y<=width*width)
+        ctx.drawImage(base,pad+x,pad+y);
 
-  ctx.globalCompositeOperation = 'source-in';
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.globalCompositeOperation='source-in';
+  ctx.fillStyle=color;
+  ctx.fillRect(0,0,out.width,out.height);
 
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(base, pad, pad);
+  ctx.globalCompositeOperation='source-over';
+  ctx.drawImage(base,pad,pad);
 
-  const blob = await out.convertToBlob({ type: 'image/png' });
-  self.postMessage({ blob, index });
+  const blob = await out.convertToBlob({type:'image/png'});
+  self.postMessage({id,blob,token});
 };
-`], { type: 'application/javascript' })));
+`],{type:'application/javascript'})));
 
 /* ---------- UPLOAD ---------- */
-dropZone.onclick = () => fileInput.click();
-
-dropZone.ondragover = e => {
-  e.preventDefault();
-  dropZone.classList.add('dragover');
-};
-dropZone.ondragleave = () => dropZone.classList.remove('dragover');
-dropZone.ondrop = e => {
+dropZone.onclick=()=>fileInput.click();
+dropZone.ondragover=e=>{e.preventDefault();dropZone.classList.add('dragover');};
+dropZone.ondragleave=()=>dropZone.classList.remove('dragover');
+dropZone.ondrop=e=>{
   e.preventDefault();
   dropZone.classList.remove('dragover');
   handleFiles(e.dataTransfer.files);
 };
 
-fileInput.onchange = () => handleFiles(fileInput.files);
+fileInput.onchange=()=>handleFiles(fileInput.files);
 
-function handleFiles(files) {
-  [...files].forEach(file => {
-    const canvas = document.createElement('canvas');
-    grid.appendChild(makeThumb(canvas));
-    items.push({ file, canvas });
+function handleFiles(files){
+  [...files].forEach(file=>{
+    const id = crypto.randomUUID();
+    const canvas=document.createElement('canvas');
+    const wrap=makeThumb(id,canvas);
+    grid.appendChild(wrap);
+    items.set(id,{file,canvas});
   });
   renderAll();
 }
 
-function makeThumb(canvas) {
-  const wrap = document.createElement('div');
-  wrap.className = 'thumb';
-
-  const btn = document.createElement('button');
-  btn.textContent = '×';
-  btn.onclick = () => {
-    wrap.remove();
-    items = items.filter(i => i.canvas !== canvas);
-  };
-
-  wrap.append(btn, canvas);
-  return wrap;
+function makeThumb(id,canvas){
+  const w=document.createElement('div');
+  w.className='thumb';
+  const b=document.createElement('button');
+  b.textContent='×';
+  b.onclick=()=>{items.delete(id);w.remove();renderAll();};
+  w.append(b,canvas);
+  return w;
 }
 
 /* ---------- RENDER ---------- */
-[outlineWidth, outlineColor, removeBg, threshold].forEach(i => i.oninput = renderAll);
+[outlineWidth,outlineColor,removeBg,threshold].forEach(i=>i.oninput=renderAll);
 
-function renderAll() {
-  if (!items.length) return;
-  progressBar.style.width = '0%';
+function renderAll(){
+  renderToken++;
+  const token = renderToken;
+  const total = items.size;
+  let done = 0;
+  progressBar.style.width='0%';
 
-  items.forEach((item, i) => {
+  items.forEach((item,id)=>{
     worker.postMessage({
-      file: item.file,
-      index: i,
-      width: +outlineWidth.value,
-      color: outlineColor.value,
-      removeBg: removeBg.checked,
-      threshold: +threshold.value
+      id,
+      token,
+      file:item.file,
+      width:+outlineWidth.value,
+      color:outlineColor.value,
+      removeBg:removeBg.checked,
+      threshold:+threshold.value
     });
   });
+
+  worker.onmessage=e=>{
+    if(e.data.token!==renderToken) return;
+    const item=items.get(e.data.id);
+    if(!item) return;
+
+    const img=new Image();
+    img.onload=()=>{
+      item.canvas.width=img.width;
+      item.canvas.height=img.height;
+      item.canvas.getContext('2d').drawImage(img,0,0);
+      done++;
+      progressBar.style.width=(done/total*100)+'%';
+    };
+    img.src=URL.createObjectURL(e.data.blob);
+  };
 }
 
-worker.onmessage = e => {
-  const { blob, index } = e.data;
-  const img = new Image();
-  img.onload = () => {
-    const c = items[index].canvas;
-    c.width = img.width;
-    c.height = img.height;
-    c.getContext('2d').drawImage(img, 0, 0);
-    progressBar.style.width = ((index + 1) / items.length * 100) + '%';
-  };
-  img.src = URL.createObjectURL(blob);
-};
-
 /* ---------- DOWNLOAD ---------- */
-download.onclick = () => {
-  items.forEach(item => {
-    const a = document.createElement('a');
-    a.href = item.canvas.toDataURL('image/png');
-    a.download = item.file.name.replace(/\..+$/, '') + '_outlined.png';
+download.onclick=()=>{
+  items.forEach(item=>{
+    const a=document.createElement('a');
+    a.href=item.canvas.toDataURL('image/png');
+    a.download=item.file.name.replace(/\..+$/,'')+'_outlined.png';
     a.click();
   });
 };
