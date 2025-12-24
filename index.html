@@ -5,124 +5,88 @@
 <title>Smart Auto Image Editor Tool</title>
 
 <style>
-body {
-  font-family: system-ui, sans-serif;
-  background: #f0f2f5;
-  padding: 24px;
-  margin: 0;
+body{
+  font-family:system-ui,sans-serif;
+  background:#f0f2f5;
+  padding:24px;
+  margin:0
 }
-h1 { margin-bottom: 4px; }
-p { color: #6b7280; }
-
-.container {
-  display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 24px;
+.container{
+  display:grid;
+  grid-template-columns:1fr 360px;
+  gap:24px
 }
-
-.panel {
-  background: white;
-  padding: 20px;
-  border-radius: 16px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 8px 20px rgba(0,0,0,.08);
+.panel{
+  background:#fff;
+  padding:20px;
+  border-radius:16px;
+  border:1px solid #e5e7eb;
+  box-shadow:0 8px 20px rgba(0,0,0,.08)
 }
-
-.upload {
-  border: 2px dashed #c7c7c7;
-  padding: 40px;
-  text-align: center;
-  border-radius: 12px;
-  cursor: pointer;
+.upload{
+  border:2px dashed #c7c7c7;
+  padding:40px;
+  text-align:center;
+  border-radius:12px;
+  cursor:pointer
 }
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill,minmax(140px,1fr));
-  gap: 14px;
-  margin-top: 14px;
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  gap:14px;
+  margin-top:14px
 }
-
-.thumb {
-  position: relative;
-  border-radius: 12px;
-  padding: 6px;
-  border: 1px solid #e5e7eb;
-  cursor: pointer;
-  background: white;
+.thumb{
+  position:relative;
+  border-radius:12px;
+  padding:6px;
+  border:1px solid #e5e7eb;
+  cursor:pointer;
+  background:white
 }
-
-.thumb button {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  background: red;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+canvas{
+  width:100%;
+  border-radius:8px;
+  background:repeating-conic-gradient(#ccc 0% 25%,#fff 0% 50%) 50%/20px 20px
 }
-
-canvas {
-  width: 100%;
-  display: block;
-  border-radius: 8px;
-  background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50%/20px 20px;
+button.main{
+  margin-top:16px;
+  width:100%;
+  padding:14px;
+  border-radius:10px;
+  border:none;
+  background:#6366f1;
+  color:white;
+  font-weight:600;
+  cursor:pointer
 }
-
-label { font-weight: 600; margin-top: 12px; display: block; }
-input { width: 100%; margin-top: 6px; }
-
-.toggle { display: flex; gap: 8px; margin-top: 10px; }
-
-button.main {
-  margin-top: 16px;
-  width: 100%;
-  padding: 14px;
-  border-radius: 10px;
-  border: none;
-  background: #6366f1;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
+.editor{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:999
 }
-
-.editor {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.6);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
+.editor.active{display:flex}
+.editor-box{
+  background:white;
+  width:95%;
+  max-width:1200px;
+  border-radius:16px;
+  padding:16px
 }
-.editor.active { display: flex; }
-
-.editor-box {
-  background: white;
-  width: 90%;
-  max-width: 1100px;
-  border-radius: 16px;
-  padding: 16px;
+.editor-body{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin:12px 0
 }
-
-.editor-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.editor-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin: 12px 0;
-}
-
-.editor-controls {
-  display: grid;
-  grid-template-columns: repeat(3,1fr);
-  gap: 10px;
+.editor-controls{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px
 }
 </style>
 </head>
@@ -130,10 +94,9 @@ button.main {
 <body>
 
 <h1>Smart Auto Image Editor Tool</h1>
-<p>Background removal, outlining, editing, lasso select, undo/redo.</p>
+<p>Background removal, outlining, editing, lasso, undo/redo.</p>
 
 <div class="container">
-
 <div class="panel">
   <div class="upload" id="dropZone">
     <strong>Drop images or click</strong>
@@ -145,75 +108,63 @@ button.main {
 <div class="panel">
   <label>Global Outline Width</label>
   <input type="number" id="globalWidth" value="25">
-
   <label>Global Outline Color</label>
   <input type="color" id="globalColor" value="#000000">
-
   <button class="main" id="download">Download All</button>
 </div>
-
 </div>
 
 <!-- EDITOR -->
 <div class="editor" id="editor">
-  <div class="editor-box">
-    <div class="editor-top">
-      <strong>Edit Image</strong>
-      <button onclick="closeEditor()">✕</button>
-    </div>
-
-    <div class="editor-body">
-      <canvas id="editCanvas"></canvas>
-      <canvas id="previewCanvas"></canvas>
-    </div>
-
-    <div class="editor-controls">
-      <div>
-        <label>Brush Size</label>
-        <input type="range" id="brush" min="5" max="80" value="30">
-      </div>
-
-      <div>
-        <label>Resize (%)</label>
-        <input type="range" id="resize" min="25" max="200" value="100">
-      </div>
-
-      <div>
-        <label>Outline Width (This Image)</label>
-        <input type="number" id="localWidth" placeholder="Use global">
-      </div>
-
-      <button onclick="mode='erase'">Erase</button>
-      <button onclick="mode='restore'">Restore</button>
-      <button onclick="mode='lasso'">Lasso</button>
-
-      <button onclick="undo()">Undo</button>
-      <button onclick="redo()">Redo</button>
-      <button onclick="resetEdit()">Reset</button>
-      <button onclick="applyEdit()">Apply</button>
-    </div>
+<div class="editor-box">
+<strong>Edit Image</strong>
+<div class="editor-body">
+  <div style="position:relative">
+    <canvas id="editCanvas"></canvas>
+    <canvas id="cursorCanvas" style="position:absolute;left:0;top:0;pointer-events:none"></canvas>
   </div>
+  <canvas id="previewCanvas"></canvas>
+</div>
+
+<div class="editor-controls">
+  <div>
+    <label>Brush Size</label>
+    <input type="range" id="brush" min="5" max="80" value="30">
+  </div>
+  <div>
+    <label>Resize %</label>
+    <input type="range" id="resize" min="25" max="200" value="100">
+  </div>
+  <div>
+    <label>Outline (This Image)</label>
+    <input type="number" id="localWidth" placeholder="Global">
+  </div>
+
+  <button onclick="mode='erase'">Erase</button>
+  <button onclick="mode='restore'">Restore</button>
+  <button onclick="mode='lasso'">Lasso</button>
+  <button onclick="undo()">Undo</button>
+  <button onclick="redo()">Redo</button>
+  <button onclick="applyEdit()">Apply</button>
+</div>
+</div>
 </div>
 
 <script>
-const grid = document.getElementById('grid');
-const editor = document.getElementById('editor');
-const editCanvas = document.getElementById('editCanvas');
-const previewCanvas = document.getElementById('previewCanvas');
-const ectx = editCanvas.getContext('2d');
-const pctx = previewCanvas.getContext('2d');
+const grid=document.getElementById('grid');
+const editor=document.getElementById('editor');
+const editCanvas=document.getElementById('editCanvas');
+const previewCanvas=document.getElementById('previewCanvas');
+const cursorCanvas=document.getElementById('cursorCanvas');
+const ectx=editCanvas.getContext('2d');
+const pctx=previewCanvas.getContext('2d');
+const cctx=cursorCanvas.getContext('2d');
 
-let items = [];
-let active = null;
-let original = null;
-let mode = 'erase';
-let drawing = false;
-let history = [];
-let redoStack = [];
-let lasso = [];
+let items=[],active,originalCanvas,mode='erase';
+let drawing=false,history=[],redoStack=[],lasso=[];
 
-dropZone.onclick = () => fileInput.click();
-fileInput.onchange = () => addFiles(fileInput.files);
+dropZone.onclick=()=>fileInput.click();
+fileInput.onchange=()=>addFiles(fileInput.files);
 
 function addFiles(files){
   [...files].forEach(file=>{
@@ -237,56 +188,76 @@ function addFiles(files){
 }
 
 function openEditor(canvas){
-  active = items.find(i=>i.canvas===canvas);
-  original = new Image();
-  original.onload=()=>{
-    editCanvas.width=previewCanvas.width=original.width;
-    editCanvas.height=previewCanvas.height=original.height;
-    ectx.drawImage(original,0,0);
-    pctx.drawImage(original,0,0);
-    history=[editCanvas.toDataURL()];
-    redoStack=[];
-    editor.classList.add('active');
-  };
-  original.src=canvas.toDataURL();
+  active=items.find(i=>i.canvas===canvas);
+  editCanvas.width=previewCanvas.width=canvas.width;
+  editCanvas.height=previewCanvas.height=canvas.height;
+  cursorCanvas.width=canvas.width;
+  cursorCanvas.height=canvas.height;
+  ectx.drawImage(canvas,0,0);
+  pctx.drawImage(canvas,0,0);
+
+  originalCanvas=document.createElement('canvas');
+  originalCanvas.width=canvas.width;
+  originalCanvas.height=canvas.height;
+  originalCanvas.getContext('2d').drawImage(canvas,0,0);
+
+  history=[editCanvas.toDataURL()];
+  redoStack=[];
+  editor.classList.add('active');
 }
 
-editCanvas.onpointerdown=e=>{
-  drawing=true;
-  saveState();
-};
-editCanvas.onpointerup=()=>{
-  drawing=false;
-  if(mode==='lasso' && lasso.length>2){
-    ectx.globalCompositeOperation='destination-out';
-    ectx.beginPath();
-    ectx.moveTo(lasso[0].x,lasso[0].y);
-    lasso.forEach(p=>ectx.lineTo(p.x,p.y));
-    ectx.closePath();
-    ectx.fill();
-    lasso=[];
-    refreshPreview();
-  }
-};
+editCanvas.onpointerdown=()=>{drawing=true;saveState()};
+editCanvas.onpointerup=()=>{drawing=false;if(mode==='lasso'&&lasso.length){applyLasso()}};
 editCanvas.onpointermove=e=>{
+  drawCursor(e);
   if(!drawing) return;
   const r=editCanvas.getBoundingClientRect();
   const x=(e.clientX-r.left)*editCanvas.width/r.width;
   const y=(e.clientY-r.top)*editCanvas.height/r.height;
 
-  if(mode==='lasso'){
-    lasso.push({x,y});
-    return;
-  }
+  if(mode==='lasso'){lasso.push({x,y});return}
 
-  ectx.globalCompositeOperation = mode==='erase'?'destination-out':'source-over';
-  ectx.beginPath();
-  ectx.arc(x,y,brush.value,0,Math.PI*2);
-  ectx.fill();
-  refreshPreview();
+  if(mode==='erase'){
+    ectx.globalCompositeOperation='destination-out';
+    ectx.beginPath();
+    ectx.arc(x,y,brush.value,0,Math.PI*2);
+    ectx.fill();
+  }
+  if(mode==='restore'){
+    ectx.save();
+    ectx.beginPath();
+    ectx.arc(x,y,brush.value,0,Math.PI*2);
+    ectx.clip();
+    ectx.drawImage(originalCanvas,0,0);
+    ectx.restore();
+  }
+  refresh();
 };
 
-function refreshPreview(){
+function drawCursor(e){
+  const r=editCanvas.getBoundingClientRect();
+  const x=(e.clientX-r.left)*editCanvas.width/r.width;
+  const y=(e.clientY-r.top)*editCanvas.height/r.height;
+  cctx.clearRect(0,0,cursorCanvas.width,cursorCanvas.height);
+  cctx.beginPath();
+  cctx.arc(x,y,brush.value,0,Math.PI*2);
+  cctx.strokeStyle='black';
+  cctx.lineWidth=2;
+  cctx.stroke();
+}
+
+function applyLasso(){
+  ectx.globalCompositeOperation='destination-out';
+  ectx.beginPath();
+  ectx.moveTo(lasso[0].x,lasso[0].y);
+  lasso.forEach(p=>ectx.lineTo(p.x,p.y));
+  ectx.closePath();
+  ectx.fill();
+  lasso=[];
+  refresh();
+}
+
+function refresh(){
   pctx.clearRect(0,0,previewCanvas.width,previewCanvas.height);
   pctx.drawImage(editCanvas,0,0);
 }
@@ -296,51 +267,49 @@ function saveState(){
   if(history.length>20) history.shift();
   redoStack=[];
 }
-
 function undo(){
-  if(history.length<2) return;
+  if(history.length<2)return;
   redoStack.push(history.pop());
-  load(history[history.length-1]);
+  load(history.at(-1));
 }
-
 function redo(){
-  if(!redoStack.length) return;
+  if(!redoStack.length)return;
   const s=redoStack.pop();
   history.push(s);
   load(s);
 }
-
 function load(src){
   const i=new Image();
-  i.onload=()=>{
-    ectx.clearRect(0,0,editCanvas.width,editCanvas.height);
-    ectx.drawImage(i,0,0);
-    refreshPreview();
-  };
+  i.onload=()=>{ectx.clearRect(0,0,editCanvas.width,editCanvas.height);ectx.drawImage(i,0,0);refresh()};
   i.src=src;
 }
 
-function resetEdit(){
-  load(history[0]);
+function applyOutline(src,width,color){
+  const o=document.createElement('canvas');
+  o.width=src.width+width*2;
+  o.height=src.height+width*2;
+  const ctx=o.getContext('2d');
+  for(let y=-width;y<=width;y++)
+    for(let x=-width;x<=width;x++)
+      if(x*x+y*y<=width*width)
+        ctx.drawImage(src,width+x,width+y);
+  ctx.globalCompositeOperation='source-in';
+  ctx.fillStyle=color;
+  ctx.fillRect(0,0,o.width,o.height);
+  ctx.globalCompositeOperation='source-over';
+  ctx.drawImage(src,width,width);
+  return o;
 }
 
 function applyEdit(){
-  active.canvas.width=editCanvas.width;
-  active.canvas.height=editCanvas.height;
-  active.canvas.getContext('2d').drawImage(editCanvas,0,0);
-  active.outline = localWidth.value || null;
-  closeEditor();
-}
-
-function closeEditor(){
+  const w=active.outline??+globalWidth.value;
+  const c=globalColor.value;
+  const out=applyOutline(editCanvas,w,c);
+  active.canvas.width=out.width;
+  active.canvas.height=out.height;
+  active.canvas.getContext('2d').drawImage(out,0,0);
   editor.classList.remove('active');
 }
-
-document.onkeydown=e=>{
-  if(!editor.classList.contains('active')) return;
-  if(e.ctrlKey && e.key==='z') undo();
-  if(e.ctrlKey && (e.key==='y'||(e.shiftKey&&e.key==='Z'))) redo();
-};
 </script>
 
 </body>
