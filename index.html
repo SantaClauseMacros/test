@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Image Outline Tool (Object-Focused)</title>
-
+<title>Smart Multi-Object Outline Tool</title>
 <style>
 body {
   font-family: system-ui, sans-serif;
@@ -14,11 +13,7 @@ body {
 h1 { margin-bottom:4px; }
 p { color:#6b7280; margin-top:0; }
 
-.container {
-  display:grid;
-  grid-template-columns:1fr 320px;
-  gap:20px;
-}
+.container { display:grid; grid-template-columns:1fr 320px; gap:20px; }
 
 .panel {
   background:white;
@@ -34,10 +29,7 @@ p { color:#6b7280; margin-top:0; }
   border-radius:10px;
   cursor:pointer;
 }
-.upload.dragover {
-  background:#eef2ff;
-  border-color:#6366f1;
-}
+.upload.dragover { background:#eef2ff; border-color:#6366f1; }
 
 .grid {
   display:grid;
@@ -53,7 +45,6 @@ p { color:#6b7280; margin-top:0; }
   position:relative;
   border:1px solid #e5e7eb;
 }
-
 .thumb button {
   position:absolute;
   top:4px;
@@ -65,21 +56,12 @@ p { color:#6b7280; margin-top:0; }
   cursor:pointer;
 }
 
-canvas {
-  width:100%;
-  background:white;
-  border-radius:6px;
-}
+canvas { width:100%; background:white; border-radius:6px; }
 
 label { font-weight:600; display:block; margin-top:14px; }
 input { width:100%; margin-top:6px; }
 
-.toggle {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin-top:12px;
-}
+.toggle { display:flex; align-items:center; gap:8px; margin-top:12px; }
 
 .progress {
   height:8px;
@@ -88,12 +70,7 @@ input { width:100%; margin-top:6px; }
   overflow:hidden;
   margin-top:12px;
 }
-.progress div {
-  height:100%;
-  width:0%;
-  background:#6366f1;
-  transition:.2s;
-}
+.progress div { height:100%; width:0%; background:#6366f1; transition:.2s; }
 
 button.main {
   margin-top:16px;
@@ -110,8 +87,8 @@ button.main {
 </head>
 <body>
 
-<h1>Image Outline Tool</h1>
-<p>Keeps main object • removes floating junk • solid outline</p>
+<h1>Smart Multi-Object Outline Tool</h1>
+<p>Removes background, keeps all main objects, draws solid outlines</p>
 
 <div class="container">
 
@@ -133,8 +110,11 @@ button.main {
 
   <div class="toggle">
     <input type="checkbox" id="removeBg" checked>
-    <label for="removeBg">Keep main object only</label>
+    <label for="removeBg">Remove background and keep main objects</label>
   </div>
+
+  <label>Minimum Object Size (pixels)</label>
+  <input type="number" id="minSize" value="200" min="10" max="10000">
 
   <div class="progress"><div id="progress"></div></div>
 
@@ -152,6 +132,7 @@ const progressBar = document.getElementById('progress');
 const outlineWidth = document.getElementById('width');
 const outlineColor = document.getElementById('color');
 const removeBg = document.getElementById('removeBg');
+const minSize = document.getElementById('minSize');
 
 let items = new Map();
 let renderToken = 0;
@@ -159,77 +140,64 @@ let renderToken = 0;
 /* ---------- WORKER ---------- */
 const worker = new Worker(URL.createObjectURL(new Blob([`
 self.onmessage = async e => {
-  const { file, id, width, color, removeBg, token } = e.data;
+  const { file, id, width, color, removeBg, minSize, token } = e.data;
   const img = await createImageBitmap(file);
-
   const w = img.width, h = img.height;
   const base = new OffscreenCanvas(w,h);
   const ctx = base.getContext('2d');
   ctx.drawImage(img,0,0);
 
   if (removeBg) {
-    const imgData = ctx.getImageData(0,0,w,h);
-    const d = imgData.data;
+    const data = ctx.getImageData(0,0,w,h);
+    const d = data.data;
     const visited = new Uint8Array(w*h);
 
-    let bestCount = 0;
-    let bestMask = null;
+    // mark foreground pixels (alpha>10)
+    for(let i=0;i<w*h;i++) visited[i]=(d[i*4+3]>10?0:1);
 
+    const components = [];
     const stack = [];
+    const idx=(x,y)=>y*w+x;
 
-    const idx = (x,y)=>y*w+x;
-
-    for (let y=0;y<h;y++) {
-      for (let x=0;x<w;x++) {
-        const i = idx(x,y);
-        if (visited[i]) continue;
-        if (d[i*4+3] < 10) { visited[i]=1; continue; }
-
-        let count = 0;
-        const mask = [];
+    for(let y=0;y<h;y++){
+      for(let x=0;x<w;x++){
+        const i=idx(x,y);
+        if(visited[i]) continue;
+        const mask=[];
         stack.push(i);
         visited[i]=1;
-
-        while (stack.length) {
-          const p = stack.pop();
+        while(stack.length){
+          const p=stack.pop();
           mask.push(p);
-          count++;
-
-          const px = p % w;
-          const py = (p / w) | 0;
-
+          const px=p%w, py=(p/w)|0;
           [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
             const nx=px+dx, ny=py+dy;
             if(nx<0||ny<0||nx>=w||ny>=h) return;
-            const ni = idx(nx,ny);
-            if (!visited[ni] && d[ni*4+3] >= 10) {
+            const ni=idx(nx,ny);
+            if(!visited[ni]){
               visited[ni]=1;
               stack.push(ni);
             }
           });
         }
-
-        if (count > bestCount) {
-          bestCount = count;
-          bestMask = mask;
-        }
+        if(mask.length>=minSize) components.push(mask);
       }
     }
 
-    // clear everything
-    for (let i=0;i<d.length;i+=4) d[i+3]=0;
-    // restore main object
-    bestMask?.forEach(p=>d[p*4+3]=255);
-    ctx.putImageData(imgData,0,0);
+    // clear all
+    for(let i=0;i<d.length;i+=4) d[i+3]=0;
+    // restore all large components
+    components.forEach(mask=>mask.forEach(p=>d[p*4+3]=255));
+    ctx.putImageData(data,0,0);
   }
 
   const pad = width;
   const out = new OffscreenCanvas(w+pad*2,h+pad*2);
   const octx = out.getContext('2d');
 
-  for (let y=-width;y<=width;y++)
-    for (let x=-width;x<=width;x++)
-      if (x*x+y*y<=width*width)
+  for(let y=-width;y<=width;y++)
+    for(let x=-width;x<=width;x++)
+      if(x*x+y*y<=width*width)
         octx.drawImage(base,pad+x,pad+y);
 
   octx.globalCompositeOperation='source-in';
@@ -248,22 +216,18 @@ self.onmessage = async e => {
 dropZone.onclick=()=>fileInput.click();
 dropZone.ondragover=e=>{e.preventDefault();dropZone.classList.add('dragover');};
 dropZone.ondragleave=()=>dropZone.classList.remove('dragover');
-dropZone.ondrop=e=>{
-  e.preventDefault();
-  dropZone.classList.remove('dragover');
-  handleFiles(e.dataTransfer.files);
-};
+dropZone.ondrop=e=>{e.preventDefault();dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files);};
 fileInput.onchange=()=>handleFiles(fileInput.files);
 
 function handleFiles(files){
   [...files].forEach(file=>{
-    const id=crypto.randomUUID();
-    const canvas=document.createElement('canvas');
-    const wrap=document.createElement('div');
+    const id = crypto.randomUUID();
+    const canvas = document.createElement('canvas');
+    const wrap = document.createElement('div');
     wrap.className='thumb';
-    const b=document.createElement('button');
+    const b = document.createElement('button');
     b.textContent='×';
-    b.onclick=()=>{items.delete(id);wrap.remove();renderAll();};
+    b.onclick=()=>{items.delete(id); wrap.remove(); renderAll();};
     wrap.append(b,canvas);
     grid.appendChild(wrap);
     items.set(id,{file,canvas});
@@ -272,30 +236,30 @@ function handleFiles(files){
 }
 
 /* ---------- RENDER ---------- */
-[outlineWidth,outlineColor,removeBg].forEach(i=>i.oninput=renderAll);
+[outlineWidth,outlineColor,removeBg,minSize].forEach(i=>i.oninput=renderAll);
 
 function renderAll(){
   renderToken++;
-  const token=renderToken;
-  let done=0;
+  const token = renderToken;
+  let done = 0;
   progressBar.style.width='0%';
 
   items.forEach((item,id)=>{
     worker.postMessage({
       id, token,
-      file:item.file,
-      width:+outlineWidth.value,
-      color:outlineColor.value,
-      removeBg:removeBg.checked
+      file: item.file,
+      width: +outlineWidth.value,
+      color: outlineColor.value,
+      removeBg: removeBg.checked,
+      minSize: +minSize.value
     });
   });
 
   worker.onmessage=e=>{
     if(e.data.token!==renderToken) return;
-    const item=items.get(e.data.id);
+    const item = items.get(e.data.id);
     if(!item) return;
-
-    const img=new Image();
+    const img = new Image();
     img.onload=()=>{
       item.canvas.width=img.width;
       item.canvas.height=img.height;
@@ -303,7 +267,7 @@ function renderAll(){
       done++;
       progressBar.style.width=(done/items.size*100)+'%';
     };
-    img.src=URL.createObjectURL(e.data.blob);
+    img.src = URL.createObjectURL(e.data.blob);
   };
 }
 
@@ -311,8 +275,8 @@ function renderAll(){
 download.onclick=()=>{
   items.forEach(item=>{
     const a=document.createElement('a');
-    a.href=item.canvas.toDataURL('image/png');
-    a.download=item.file.name.replace(/\..+$/,'')+'_outlined.png';
+    a.href = item.canvas.toDataURL('image/png');
+    a.download = item.file.name.replace(/\..+$/,'')+'_outlined.png';
     a.click();
   });
 };
