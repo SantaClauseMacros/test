@@ -107,7 +107,7 @@ button.main:hover { filter: brightness(1.1); }
 <body>
 
 <h1>Smart Auto Image Editor Tool</h1>
-<p>Automatically detects all main objects, removes background, draws solid outlines, and crops tightly around content.</p>
+<p>Automatically detects all main objects, removes background, draws solid outlines, and optionally crops around content.</p>
 
 <div class="container">
 
@@ -133,6 +133,11 @@ button.main:hover { filter: brightness(1.1); }
   </div>
 
   <div class="toggle">
+    <input type="checkbox" id="cropEnabled" checked>
+    <label for="cropEnabled">Enable auto-cropping</label>
+  </div>
+
+  <div class="toggle">
     <input type="checkbox" id="checkerboard" checked>
     <label for="checkerboard">Checkerboard transparency preview</label>
   </div>
@@ -153,6 +158,7 @@ const progressBar = document.getElementById('progress');
 const outlineWidth = document.getElementById('width');
 const outlineColor = document.getElementById('color');
 const removeBg = document.getElementById('removeBg');
+const cropEnabled = document.getElementById('cropEnabled');
 const checkerboard = document.getElementById('checkerboard');
 
 let items = new Map();
@@ -161,17 +167,15 @@ let renderToken = 0;
 /* ---------- WORKER ---------- */
 const worker = new Worker(URL.createObjectURL(new Blob([`
 self.onmessage = async e => {
-  const { file, id, width, color, removeBg, token } = e.data;
+  const { file, id, width, color, removeBg, cropEnabled, token } = e.data;
   const img = await createImageBitmap(file);
   const w = img.width, h = img.height;
   const area = w*h;
 
-  // Step 1: Draw original image
   const base = new OffscreenCanvas(w,h);
   const ctx = base.getContext('2d');
   ctx.drawImage(img,0,0);
 
-  // Step 2: Remove small background noise
   if(removeBg){
     const data = ctx.getImageData(0,0,w,h);
     const d = data.data;
@@ -181,7 +185,7 @@ self.onmessage = async e => {
     const components = [];
     const stack = [];
     const idx = (x,y)=>y*w+x;
-    const minSize = area*0.001; // auto-remove tiny dots
+    const minSize = area*0.001;
 
     for(let y=0;y<h;y++){
       for(let x=0;x<w;x++){
@@ -207,39 +211,36 @@ self.onmessage = async e => {
       }
     }
 
-    // Clear all and restore components
     for(let i=0;i<d.length;i+=4) d[i+3]=0;
     components.forEach(mask=>mask.forEach(p=>d[p*4+3]=255));
     ctx.putImageData(data,0,0);
   }
 
-  // Step 3: Find bounding box of all non-transparent pixels
-  const imgData = ctx.getImageData(0,0,w,h);
-  let minX=w, minY=h, maxX=0, maxY=0;
-  for(let y=0;y<h;y++){
-    for(let x=0;x<w;x++){
-      const a = imgData.data[(y*w+x)*4+3];
-      if(a>0){
-        if(x<minX) minX=x;
-        if(y<minY) minY=y;
-        if(x>maxX) maxX=x;
-        if(y>maxY) maxY=y;
+  let minX=0, minY=0, cropW=w, cropH=h;
+  if(cropEnabled){
+    const imgData = ctx.getImageData(0,0,w,h);
+    minX=w; minY=h; let maxX=0, maxY=0;
+    for(let y=0;y<h;y++){
+      for(let x=0;x<w;x++){
+        const a = imgData.data[(y*w+x)*4+3];
+        if(a>0){
+          if(x<minX) minX=x;
+          if(y<minY) minY=y;
+          if(x>maxX) maxX=x;
+          if(y>maxY) maxY=y;
+        }
       }
     }
-  }
-  if(maxX<minX || maxY<minY){
-    minX=0; minY=0; maxX=w; maxY=h;
+    if(maxX>=minX && maxY>=minY){
+      cropW = maxX - minX + 1;
+      cropH = maxY - minY + 1;
+    }
   }
 
-  const cropW = maxX-minX+1;
-  const cropH = maxY-minY+1;
-
-  // Step 4: Draw outline
   const pad = width;
   const out = new OffscreenCanvas(cropW+pad*2, cropH+pad*2);
   const octx = out.getContext('2d');
 
-  // Draw shifted image multiple times for outline
   const tmp = new OffscreenCanvas(cropW, cropH);
   const tctx = tmp.getContext('2d');
   tctx.drawImage(base, -minX, -minY, w, h, 0,0,cropW,cropH);
@@ -285,7 +286,7 @@ function handleFiles(files){
 }
 
 /* ---------- RENDER ---------- */
-[outlineWidth,outlineColor,removeBg,checkerboard].forEach(i=>i.oninput=renderAll);
+[outlineWidth,outlineColor,removeBg,checkerboard,cropEnabled].forEach(i=>i.oninput=renderAll);
 
 function renderAll(){
   renderToken++;
@@ -301,7 +302,8 @@ function renderAll(){
       file:item.file,
       width:+outlineWidth.value,
       color:outlineColor.value,
-      removeBg:removeBg.checked
+      removeBg:removeBg.checked,
+      cropEnabled:cropEnabled.checked
     });
   });
 
@@ -322,7 +324,7 @@ function renderAll(){
 }
 
 /* ---------- INCREMENTAL DOWNLOAD ---------- */
-download.onclick = () => {
+document.getElementById('download').onclick = () => {
   const allItems = Array.from(items.values());
   let i = 0;
 
@@ -335,9 +337,7 @@ download.onclick = () => {
       a.click();
     });
     i += 5;
-    if (i < allItems.length) {
-      setTimeout(downloadNextBatch, 1000);
-    }
+    if (i < allItems.length) setTimeout(downloadNextBatch, 1000);
   }
 
   downloadNextBatch();
