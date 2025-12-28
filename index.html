@@ -268,14 +268,25 @@ img.src=URL.createObjectURL(e.data.blob);
 }
 
 /* ---------- DOWNLOAD ---------- */
-document.getElementById('download').onclick=()=>{
-items.forEach(item=>{
-const a=document.createElement('a');
-a.href=item.canvas.toDataURL('image/png');
-a.download=item.file.name.replace(/\..+$/,'')+'_edited.png';
-a.click();
-});
+document.getElementById('download').onclick = () => {
+  items.forEach(item => {
+    const a = document.createElement('a');
+    a.href = item.canvas.toDataURL('image/png');
+
+    // Original filename without extension
+    const baseName = item.file.name.replace(/\.[^/.]+$/, '');
+
+    // Build filename
+    let fileName = `PS99 ${baseName}`;
+    if (rainbowIcon.checked) {
+      fileName += ' (Rainbow)';
+    }
+
+    a.download = fileName + '.png';
+    a.click();
+  });
 };
+
 </script>
 </body>
 </html>
