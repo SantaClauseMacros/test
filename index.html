@@ -84,7 +84,7 @@ button.main{
 
 <body>
 <h1>Smart Auto Image Editor Tool</h1>
-<p>Automatically removes background, centers content, applies clean outlines.</p>
+<p>Automatically removes background, centers content, applies clean outlines, and optionally adds a rainbow overlay.</p>
 
 <div class="container">
 <div class="panel">
@@ -118,6 +118,11 @@ button.main{
     <label for="checkerboard">Transparency preview</label>
   </div>
 
+  <div class="toggle">
+    <input type="checkbox" id="rainbowIcon">
+    <label for="rainbowIcon">Apply Rainbow Icon</label>
+  </div>
+
   <div class="progress"><div id="progress"></div></div>
   <button class="main" id="download">Download All Images</button>
 </div>
@@ -133,65 +138,86 @@ const outlineColor=document.getElementById('color');
 const removeBg=document.getElementById('removeBg');
 const cropEnabled=document.getElementById('cropEnabled');
 const checkerboard=document.getElementById('checkerboard');
+const rainbowIcon=document.getElementById('rainbowIcon');
 
 let items=new Map(),token=0;
 
 /* ---------- WORKER ---------- */
 const worker=new Worker(URL.createObjectURL(new Blob([`
-self.onmessage=async e=>{
-const{file,id,width,color,removeBg,cropEnabled,token}=e.data;
-const img=await createImageBitmap(file);
-const w=img.width,h=img.height;
+self.onmessage = async e => {
+  const { file, id, width, color, removeBg, cropEnabled, rainbow, token } = e.data;
+  const img = await createImageBitmap(file);
+  const w = img.width, h = img.height;
 
-const base=new OffscreenCanvas(w,h);
-const ctx=base.getContext('2d');
-ctx.drawImage(img,0,0);
+  const base = new OffscreenCanvas(w, h);
+  const ctx = base.getContext('2d');
+  ctx.drawImage(img, 0, 0);
 
-/* REMOVE BACKGROUND */
-if(removeBg){
-  const data=ctx.getImageData(0,0,w,h);
-  for(let i=0;i<data.data.length;i+=4)
-    if(data.data[i+3]<10) data.data[i+3]=0;
-  ctx.putImageData(data,0,0);
-}
+  /* REMOVE BACKGROUND */
+  if (removeBg) {
+    const data = ctx.getImageData(0, 0, w, h);
+    for (let i = 0; i < data.data.length; i += 4)
+      if (data.data[i + 3] < 10) data.data[i + 3] = 0;
+    ctx.putImageData(data, 0, 0);
+  }
 
-/* AUTO CROP + CENTER */
-let minX=w,minY=h,maxX=0,maxY=0;
-if(cropEnabled){
-  const d=ctx.getImageData(0,0,w,h).data;
-  for(let y=0;y<h;y++)for(let x=0;x<w;x++)
-    if(d[(y*w+x)*4+3]>0){
-      minX=Math.min(minX,x);
-      minY=Math.min(minY,y);
-      maxX=Math.max(maxX,x);
-      maxY=Math.max(maxY,y);
+  /* AUTO CROP + CENTER */
+  let minX = w, minY = h, maxX = 0, maxY = 0;
+  if (cropEnabled) {
+    const d = ctx.getImageData(0, 0, w, h).data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
+      if (d[(y * w + x) * 4 + 3] > 0) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+  }
+  if (maxX < minX) { minX = 0; minY = 0; maxX = w - 1; maxY = h - 1; }
+
+  const cw = maxX - minX + 1, ch = maxY - minY + 1;
+  const pad = width;
+
+  const out = new OffscreenCanvas(cw + pad * 2, ch + pad * 2);
+  const octx = out.getContext('2d');
+
+  const tmp = new OffscreenCanvas(cw, ch);
+  tmp.getContext('2d').drawImage(base, minX, minY, cw, ch, 0, 0, cw, ch);
+
+  /* OUTLINE */
+  for (let y = -pad; y <= pad; y++)
+    for (let x = -pad; x <= pad; x++)
+      if (x*x + y*y <= pad*pad)
+        octx.drawImage(tmp, pad + x, pad + y);
+
+  octx.globalCompositeOperation = 'source-in';
+  octx.fillStyle = color;
+  octx.fillRect(0, 0, out.width, out.height);
+  octx.globalCompositeOperation = 'source-over';
+  octx.drawImage(tmp, pad, pad);
+
+  /* RAINBOW ICON */
+  if (rainbow) {
+    const rainbowBitmap = await createImageBitmap(await fetch('Rainbow Overlay.png').then(r => r.blob()));
+    const overlay = new OffscreenCanvas(cw, ch);
+    const octx2 = overlay.getContext('2d');
+    octx2.drawImage(tmp, 0, 0); // get alpha from original
+    const alphaData = octx2.getImageData(0, 0, cw, ch);
+
+    const rainbowCtx = overlay.getContext('2d');
+    rainbowCtx.drawImage(rainbowBitmap, 0, 0, cw, ch);
+
+    const rainbowData = rainbowCtx.getImageData(0, 0, cw, ch);
+    for (let i = 0; i < alphaData.data.length; i += 4) {
+      rainbowData.data[i + 3] = alphaData.data[i + 3]; // preserve original alpha
     }
-}
-if(maxX<minX){minX=0;minY=0;maxX=w-1;maxY=h-1;}
+    rainbowCtx.putImageData(rainbowData, 0, 0);
 
-const cw=maxX-minX+1,ch=maxY-minY+1;
-const pad=width;
+    octx.drawImage(overlay, pad, pad);
+  }
 
-const out=new OffscreenCanvas(cw+pad*2,ch+pad*2);
-const octx=out.getContext('2d');
-
-const tmp=new OffscreenCanvas(cw,ch);
-tmp.getContext('2d').drawImage(base,minX,minY,cw,ch,0,0,cw,ch);
-
-/* OUTLINE */
-for(let y=-pad;y<=pad;y++)
-for(let x=-pad;x<=pad;x++)
-  if(x*x+y*y<=pad*pad)
-    octx.drawImage(tmp,pad+x,pad+y);
-
-octx.globalCompositeOperation='source-in';
-octx.fillStyle=color;
-octx.fillRect(0,0,out.width,out.height);
-octx.globalCompositeOperation='source-over';
-octx.drawImage(tmp,pad,pad);
-
-const blob=await out.convertToBlob({type:'image/png'});
-self.postMessage({id,blob,token});
+  const blob = await out.convertToBlob({ type: 'image/png' });
+  self.postMessage({ id, blob, token });
 };
 `],{type:'application/javascript'})));
 
@@ -222,18 +248,19 @@ render();
 }
 
 /* ---------- RENDER ---------- */
-[outlineWidth,outlineColor,removeBg,cropEnabled,checkerboard].forEach(i=>i.oninput=render);
+[outlineWidth,outlineColor,removeBg,cropEnabled,checkerboard,rainbowIcon].forEach(i=>i.oninput=render);
 
 function render(){
 token++;let done=0;
 progress.style.width='0%';
 items.forEach((item,id)=>{
 worker.postMessage({
-  id,token,file:item.file,
+  id, token, file:item.file,
   width:+outlineWidth.value,
   color:outlineColor.value,
   removeBg:removeBg.checked,
-  cropEnabled:cropEnabled.checked
+  cropEnabled:cropEnabled.checked,
+  rainbow: rainbowIcon.checked
 });
 });
 worker.onmessage=e=>{
