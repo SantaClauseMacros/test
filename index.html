@@ -84,7 +84,7 @@ button.main{
 
 <body>
 <h1>Smart Auto Image Editor Tool</h1>
-<p>Automatically removes background, centers content, applies clean outlines, and optionally adds a rainbow overlay.</p>
+<p>Automatically removes background, centers content, applies outlines, and optionally adds a rainbow overlay.</p>
 
 <div class="container">
 <div class="panel">
@@ -102,6 +102,11 @@ button.main{
 
   <label>Outline Color</label>
   <input type="color" id="color" value="#000000">
+
+  <div class="toggle">
+    <input type="checkbox" id="applyOutline" checked>
+    <label for="applyOutline">Apply Outline</label>
+  </div>
 
   <div class="toggle">
     <input type="checkbox" id="removeBg" checked>
@@ -139,13 +144,14 @@ const removeBg=document.getElementById('removeBg');
 const cropEnabled=document.getElementById('cropEnabled');
 const checkerboard=document.getElementById('checkerboard');
 const rainbowIcon=document.getElementById('rainbowIcon');
+const applyOutline=document.getElementById('applyOutline');
 
 let items=new Map(),token=0;
 
 /* ---------- WORKER ---------- */
 const worker=new Worker(URL.createObjectURL(new Blob([`
 self.onmessage = async e => {
-  const { file, id, width, color, removeBg, cropEnabled, rainbow, token } = e.data;
+  const { file, id, width, color, removeBg, cropEnabled, rainbow, applyOutline, token } = e.data;
   const img = await createImageBitmap(file);
   const w = img.width, h = img.height;
 
@@ -185,35 +191,32 @@ self.onmessage = async e => {
   tmp.getContext('2d').drawImage(base, minX, minY, cw, ch, 0, 0, cw, ch);
 
   /* OUTLINE */
-  for (let y = -pad; y <= pad; y++)
-    for (let x = -pad; x <= pad; x++)
-      if (x*x + y*y <= pad*pad)
-        octx.drawImage(tmp, pad + x, pad + y);
+  if(applyOutline){
+    for(let y=-pad;y<=pad;y++)
+      for(let x=-pad;x<=pad;x++)
+        if(x*x+y*y<=pad*pad)
+          octx.drawImage(tmp,pad+x,pad+y);
 
-  octx.globalCompositeOperation = 'source-in';
-  octx.fillStyle = color;
-  octx.fillRect(0, 0, out.width, out.height);
-  octx.globalCompositeOperation = 'source-over';
-  octx.drawImage(tmp, pad, pad);
+    octx.globalCompositeOperation='source-in';
+    octx.fillStyle=color;
+    octx.fillRect(0,0,out.width,out.height);
+    octx.globalCompositeOperation='source-over';
+    octx.drawImage(tmp,pad,pad);
+  } else {
+    octx.drawImage(tmp,pad,pad);
+  }
 
   /* RAINBOW ICON */
-  if (rainbow) {
+  if(rainbow){
     const rainbowBitmap = await createImageBitmap(await fetch('Rainbow Overlay.png').then(r => r.blob()));
-    const overlay = new OffscreenCanvas(cw, ch);
-    const octx2 = overlay.getContext('2d');
-    octx2.drawImage(tmp, 0, 0); // get alpha from original
-    const alphaData = octx2.getImageData(0, 0, cw, ch);
-
-    const rainbowCtx = overlay.getContext('2d');
-    rainbowCtx.drawImage(rainbowBitmap, 0, 0, cw, ch);
-
-    const rainbowData = rainbowCtx.getImageData(0, 0, cw, ch);
-    for (let i = 0; i < alphaData.data.length; i += 4) {
-      rainbowData.data[i + 3] = alphaData.data[i + 3]; // preserve original alpha
+    // Mask with current alpha
+    const mask = octx.getImageData(0,0,out.width,out.height);
+    octx.drawImage(rainbowBitmap, 0, 0, out.width, out.height);
+    const rainbowData = octx.getImageData(0,0,out.width,out.height);
+    for(let i=0;i<rainbowData.data.length;i+=4){
+      rainbowData.data[i+3] = mask.data[i+3];
     }
-    rainbowCtx.putImageData(rainbowData, 0, 0);
-
-    octx.drawImage(overlay, pad, pad);
+    octx.putImageData(rainbowData,0,0);
   }
 
   const blob = await out.convertToBlob({ type: 'image/png' });
@@ -248,7 +251,7 @@ render();
 }
 
 /* ---------- RENDER ---------- */
-[outlineWidth,outlineColor,removeBg,cropEnabled,checkerboard,rainbowIcon].forEach(i=>i.oninput=render);
+[outlineWidth,outlineColor,removeBg,cropEnabled,checkerboard,rainbowIcon,applyOutline].forEach(i=>i.oninput=render);
 
 function render(){
 token++;let done=0;
@@ -260,7 +263,8 @@ worker.postMessage({
   color:outlineColor.value,
   removeBg:removeBg.checked,
   cropEnabled:cropEnabled.checked,
-  rainbow: rainbowIcon.checked
+  rainbow: rainbowIcon.checked,
+  applyOutline: applyOutline.checked
 });
 });
 worker.onmessage=e=>{
@@ -283,7 +287,7 @@ document.getElementById('download').onclick=()=>{
 items.forEach(item=>{
 const a=document.createElement('a');
 a.href=item.canvas.toDataURL('image/png');
-a.download=item.file.name.replace(/\..+$/,'')+'_outlined.png';
+a.download=item.file.name.replace(/\..+$/,'')+'_edited.png';
 a.click();
 });
 };
