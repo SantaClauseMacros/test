@@ -2,317 +2,296 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Smart Auto Image Editor</title>
+<title>Smart Auto Image Editor PRO</title>
 <style>
-:root{
-  --bg:#f5f7ff;
-  --panel:#ffffff;
-  --primary:#6366f1;
-  --primary-2:#818cf8;
-  --border:#e5e7eb;
-  --text:#111827;
-  --muted:#6b7280;
-}
 body{
-  font-family:'Segoe UI',system-ui,sans-serif;
-  background:linear-gradient(180deg,#eef2ff,#f8fafc);
-  margin:0;padding:28px;color:var(--text)
+  font-family:'Segoe UI',system-ui;
+  background:linear-gradient(135deg,#1e293b,#0f172a);
+  margin:0;
+  padding:30px;
+  color:white;
 }
-h1{font-size:2.1rem;margin-bottom:6px}
-p{color:var(--muted);margin-bottom:22px}
-.container{display:grid;grid-template-columns:1fr 400px;gap:28px}
-.panel{background:var(--panel);border-radius:20px;padding:26px;border:1px solid var(--border);box-shadow:0 12px 30px rgba(99,102,241,.12), inset 0 1px 0 rgba(255,255,255,.6)}
-.upload{border:2px dashed #c7d2fe;background:linear-gradient(180deg,#f8faff,#eef2ff);padding:44px;text-align:center;border-radius:16px;cursor:pointer;transition:.25s ease}
-.upload strong{font-size:1.05rem}
-.upload small{color:var(--muted)}
-.upload.dragover{background:#eef2ff;border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:18px;margin-top:20px}
-.thumb{position:relative;border-radius:14px;padding:8px;border:1px solid var(--border);background:#fff}
-.thumb button{position:absolute;top:6px;right:6px;width:26px;height:26px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer}
-canvas{width:100%;border-radius:10px;display:block;background:repeating-conic-gradient(#c7d2fe 0% 25%,#fff 0% 50%) 50%/18px 18px;cursor:zoom-in}
-label{font-weight:600;margin-top:16px;display:block}
-input,select{width:100%;margin-top:6px;padding:10px 12px;border-radius:10px;border:1px solid var(--border)}
-input[type="checkbox"]{width:auto;accent-color:var(--primary)}
-.toggle{display:flex;gap:10px;align-items:center;margin-top:12px;font-weight:500}
-.progress{height:10px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:18px}
-.progress div{height:100%;width:0%;background:linear-gradient(90deg,var(--primary),var(--primary-2));transition:width .2s ease}
-button.main{margin-top:18px;width:100%;padding:15px;font-weight:700;font-size:1rem;border:none;border-radius:14px;background:linear-gradient(90deg,var(--primary),var(--primary-2));color:#fff;cursor:pointer;box-shadow:0 10px 24px rgba(99,102,241,.35)}
-button.main:hover{filter:brightness(1.05)}
+h1{margin:0 0 6px 0}
+p{opacity:.7;margin:0 0 25px 0}
 
-/* Preview Modal */
-#preview{position:fixed;inset:0;background:rgba(15,23,42,.85);display:none;align-items:center;justify-content:center;z-index:9999}
-#preview.active{display:flex}
-#pCanvas{max-width:90vw;max-height:90vh;cursor:grab;border-radius:10px}
-#toolbar{position:absolute;top:20px;right:20px;background:#fff;border-radius:14px;padding:10px;display:flex;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,.3);align-items:center}
-#toolbar button{border:none;background:var(--primary);color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer}
-#toolbar span{font-weight:600;min-width:60px;text-align:center}
+.container{
+  display:grid;
+  grid-template-columns:1fr 420px;
+  gap:24px;
+}
+
+.panel{
+  background:rgba(255,255,255,.05);
+  backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:20px;
+  padding:24px;
+}
+
+.upload{
+  border:2px dashed rgba(255,255,255,.2);
+  padding:60px;
+  text-align:center;
+  border-radius:16px;
+  cursor:pointer;
+  transition:.2s;
+}
+.upload:hover{
+  background:rgba(255,255,255,.05);
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  gap:18px;
+  margin-top:18px;
+}
+
+.thumb{
+  background:#111827;
+  border-radius:14px;
+  padding:6px;
+  position:relative;
+}
+
+.thumb button{
+  position:absolute;
+  top:4px;
+  right:4px;
+  background:#ef4444;
+  border:none;
+  color:white;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+canvas{
+  width:100%;
+  border-radius:12px;
+  display:block;
+  background:repeating-conic-gradient(#555 0% 25%,#222 0% 50%) 50%/20px 20px;
+}
+
+label{display:block;margin-top:14px;font-size:.9rem;opacity:.8}
+input,select{width:100%;margin-top:6px}
+
+button.main{
+  margin-top:20px;
+  width:100%;
+  padding:14px;
+  font-weight:600;
+  background:linear-gradient(90deg,#6366f1,#9333ea);
+  border:none;
+  border-radius:12px;
+  color:white;
+  cursor:pointer;
+}
 </style>
 </head>
 <body>
 
-<h1>Smart Auto Image Editor</h1>
-<p>Batch icon processing: remove background, crop, center, resize, outline, shadow, rainbow & export.</p>
+<h1>Smart Auto Image Editor PRO</h1>
+<p>Advanced icon processor with smart background removal & effects</p>
 
 <div class="container">
+
 <div class="panel">
   <div class="upload" id="dropZone">
-    <strong>Drop images or click</strong><br>
-    <small>PNG, JPG, WEBP</small>
+    Drop images or click
     <input type="file" id="fileInput" hidden multiple accept="image/*">
   </div>
   <div class="grid" id="grid"></div>
 </div>
 
 <div class="panel">
+
 <label>Output Size</label>
-<select id="size">
-  <option value="0">Original</option>
-  <option value="128">128 × 128</option>
-  <option value="256" selected>256 × 256</option>
-  <option value="512">512 × 512</option>
-</select>
+<input type="number" id="outputSize" value="512" min="32" max="2048">
 
-<div class="toggle"><input type="checkbox" id="crop" checked> Auto-crop & center</div>
-<div class="toggle"><input type="checkbox" id="removeBg" checked> Remove background</div>
+<label>Padding</label>
+<input type="range" id="padding" min="0" max="200" value="20">
+
 <label>Background Tolerance</label>
-<input type="range" id="bgTol" min="0" max="100" value="30">
+<input type="range" id="tolerance" min="5" max="80" value="25">
 
-<div class="toggle"><input type="checkbox" id="outline"> Outline</div>
 <label>Outline Width</label>
-<input type="number" id="outlineW" value="12" min="1" max="150">
+<input type="number" id="outlineWidth" value="0" min="0" max="150">
+
 <label>Outline Color</label>
-<input type="color" id="outlineC" value="#000000">
+<input type="color" id="outlineColor" value="#000000">
 
-<div class="toggle"><input type="checkbox" id="shadow"> Shadow / Glow</div>
+<label>Glow Radius</label>
+<input type="number" id="glowRadius" value="0" min="0" max="200">
+
+<label>Glow Color</label>
+<input type="color" id="glowColor" value="#ffffff">
+
+<label>Shadow X Offset</label>
+<input type="number" id="shadowX" value="0">
+
+<label>Shadow Y Offset</label>
+<input type="number" id="shadowY" value="0">
+
 <label>Shadow Blur</label>
-<input type="range" id="shadowBlur" min="0" max="50" value="15">
+<input type="number" id="shadowBlur" value="0">
 
-<div class="toggle"><input type="checkbox" id="rainbow"> Rainbow Overlay</div>
+<label>Shadow Opacity (0-1)</label>
+<input type="number" id="shadowOpacity" value="0.5" step="0.1" min="0" max="1">
 
-<div class="progress"><div id="progress"></div></div>
-<button class="main" id="download">Download All</button>
+<label>Rounded Corners</label>
+<input type="number" id="radius" value="0">
+
+<label>Background Fill</label>
+<input type="color" id="bgFill" value="#000000">
+
+<label>
+<input type="checkbox" id="removeBg" checked> Remove Background
+</label>
+
+<label>
+<input type="checkbox" id="applyOutline"> Apply Outline
+</label>
+
+<label>
+<input type="checkbox" id="rainbow"> Rainbow Overlay
+</label>
+
+<button class="main" id="download">Download All Sizes</button>
+
 </div>
-</div>
-
-<!-- Preview Modal -->
-<div id="preview">
-  <canvas id="pCanvas"></canvas>
-  <div id="toolbar">
-    <button id="beforeAfter">Before</button>
-    <button id="zoomOut">−</button>
-    <span id="zoomLabel">100%</span>
-    <button id="zoomIn">+</button>
-    <button id="closePreview">✕</button>
-  </div>
 </div>
 
 <script>
-const rainbowBase64="data:image/png;base64,RAINBOW_BASE64_HERE";
-const grid=document.getElementById('grid');
-const dropZone=document.getElementById('dropZone');
-const fileInput=document.getElementById('fileInput');
-const size=document.getElementById('size');
-const crop=document.getElementById('crop');
-const removeBg=document.getElementById('removeBg');
-const bgTol=document.getElementById('bgTol');
-const outline=document.getElementById('outline');
-const outlineW=document.getElementById('outlineW');
-const outlineC=document.getElementById('outlineC');
-const shadow=document.getElementById('shadow');
-const shadowBlur=document.getElementById('shadowBlur');
-const rainbow=document.getElementById('rainbow');
-const progress=document.getElementById('progress');
+const grid = document.getElementById("grid");
+const dropZone = document.getElementById("dropZone");
+const fileInput = document.getElementById("fileInput");
+const items = new Map();
 
-let items=new Map(),token=0,done=0;
-
-/* ---------- WORKER ---------- */
-const worker=new Worker(URL.createObjectURL(new Blob([`
-self.onmessage=async e=>{
-  const d=e.data,img=await createImageBitmap(d.file);
-  let w=img.width,h=img.height;
-  let base=new OffscreenCanvas(w,h),ctx=base.getContext('2d');
-  ctx.drawImage(img,0,0);
-
-  if(d.removeBg){
-    let idata=ctx.getImageData(0,0,w,h),p=idata.data;
-    let r0=p[0],g0=p[1],b0=p[2];
-    for(let i=0;i<p.length;i+=4){
-      let diff=Math.abs(p[i]-r0)+Math.abs(p[i+1]-g0)+Math.abs(p[i+2]-b0);
-      if(diff<d.bgTol*3)p[i+3]=0;
-    }
-    ctx.putImageData(idata,0,0);
-  }
-
-  let minX=w,minY=h,maxX=0,maxY=0;
-  if(d.crop){
-    let pdata=ctx.getImageData(0,0,w,h).data;
-    for(let y=0;y<h;y++)for(let x=0;x<w;x++)
-      if(pdata[(y*w+x)*4+3]>0){
-        minX=Math.min(minX,x); minY=Math.min(minY,y);
-        maxX=Math.max(maxX,x); maxY=Math.max(maxY,y);
-      }
-  }
-  if(maxX<minX){minX=0;minY=0;maxX=w-1;maxY=h-1;}
-
-  let cw=maxX-minX+1,ch=maxY-minY+1;
-  let pad=d.outline?d.outW:0;
-  let out=new OffscreenCanvas(cw+pad*2,ch+pad*2);
-  let octx=out.getContext('2d');
-
-  let tmp=new OffscreenCanvas(cw,ch);
-  tmp.getContext('2d').drawImage(base,minX,minY,cw,ch,0,0,cw,ch);
-
-  if(d.outline){
-    for(let y=-pad;y<=pad;y++)for(let x=-pad;x<=pad;x++)
-      if(x*x+y*y<=pad*pad) octx.drawImage(tmp,pad+x,pad+y);
-    octx.globalCompositeOperation='source-in';
-    octx.fillStyle=d.outC;
-    octx.fillRect(0,0,out.width,out.height);
-    octx.globalCompositeOperation='source-over';
-  }
-
-  octx.drawImage(tmp,pad,pad);
-
-  if(d.shadow){
-    octx.shadowColor='rgba(0,0,0,.4)';
-    octx.shadowBlur=d.shadowBlur;
-  }
-
-  if(d.rainbow){
-    let rb=await createImageBitmap(await (await fetch(d.rainbowBase64)).blob());
-    let mask=octx.getImageData(0,0,out.width,out.height);
-    octx.drawImage(rb,0,0,out.width,out.height);
-    let r=octx.getImageData(0,0,out.width,out.height);
-    for(let i=0;i<r.data.length;i+=4) r.data[i+3]=mask.data[i+3];
-    octx.putImageData(r,0,0);
-  }
-
-  if(d.size>0){
-    let f=new OffscreenCanvas(d.size,d.size),fx=f.getContext('2d');
-    let s=Math.min(d.size/out.width,d.size/out.height);
-    fx.drawImage(out,(d.size-out.width*s)/2,(d.size-out.height*s)/2,out.width*s,out.height*s);
-    out=f;
-  }
-
-  let blob=await out.convertToBlob({type:'image/png'});
-  self.postMessage({id:d.id,blob,token:d.token});
-};
-`],{type:'application/javascript'})));
-
-/* ---------- WORKER HANDLER ---------- */
-worker.onmessage=e=>{
- if(e.data.token!==token)return;
- let it=items.get(e.data.id);
- let img=new Image();
- img.onload=()=>{
-   it.canvas.width=img.width;
-   it.canvas.height=img.height;
-   it.canvas.getContext('2d').drawImage(img,0,0);
-   done++;
-   progress.style.width=(done/items.size*100)+'%';
- };
- img.src=URL.createObjectURL(e.data.blob);
-};
-
-/* ---------- UPLOAD ---------- */
 dropZone.onclick=()=>fileInput.click();
-dropZone.ondragover=e=>{e.preventDefault();dropZone.classList.add('dragover')};
-dropZone.ondragleave=()=>dropZone.classList.remove('dragover');
-dropZone.ondrop=e=>{e.preventDefault();dropZone.classList.remove('dragover');handleFiles(e.dataTransfer.files)};
-fileInput.onchange=()=>handleFiles(fileInput.files);
+fileInput.onchange=e=>handleFiles(e.target.files);
+dropZone.ondragover=e=>{e.preventDefault();}
+dropZone.ondrop=e=>{
+  e.preventDefault();
+  handleFiles(e.dataTransfer.files);
+}
 
 function handleFiles(files){
- [...files].forEach(file=>{
-   const id=crypto.randomUUID();
-   const canvas=document.createElement('canvas');
-   const wrap=document.createElement('div'); wrap.className='thumb';
-   const b=document.createElement('button'); b.textContent='×';
-   b.onclick=()=>{items.delete(id);wrap.remove();render();};
-   wrap.append(b,canvas);
-   grid.appendChild(wrap);
-   items.set(id,{file,canvas,original:file});
- });
- render();
+  [...files].forEach(file=>{
+    const id=crypto.randomUUID();
+    const canvas=document.createElement("canvas");
+    const wrap=document.createElement("div");
+    wrap.className="thumb";
+    const b=document.createElement("button");
+    b.textContent="×";
+    b.onclick=()=>{items.delete(id);wrap.remove();}
+    wrap.append(b,canvas);
+    grid.appendChild(wrap);
+    items.set(id,{file,canvas});
+    processImage(id);
+  });
 }
 
-/* ---------- RENDER ---------- */
-function render(){
- token++; done=0; progress.style.width='0%';
- items.forEach((it,id)=>{
-   worker.postMessage({
-     id,token,file:it.file,removeBg:removeBg.checked,bgTol:+bgTol.value,
-     crop:crop.checked,outline:outline.checked,outW:+outlineW.value,outC:outlineC.value,
-     shadow:shadow.checked,shadowBlur:+shadowBlur.value,
-     rainbow:rainbow.checked,size:+size.value,rainbowBase64
-   });
- });
-}
-document.querySelectorAll('input,select').forEach(el=>el.oninput=render);
+async function processImage(id){
+  const item=items.get(id);
+  const img=await createImageBitmap(item.file);
 
-/* ---------- DOWNLOAD ---------- */
-document.getElementById('download').onclick=()=>{
- items.forEach(it=>{
-   const a=document.createElement('a');
-   a.href=it.canvas.toDataURL("image/png");
-   a.download=it.file.name.replace(/\.[^/.]+$/,"")+".png";
-   a.click();
- });
-};
+  const size=+outputSize.value;
+  const canvas=item.canvas;
+  canvas.width=size;
+  canvas.height=size;
+  const ctx=canvas.getContext("2d");
 
-/* ---------- PREVIEW ---------- */
-const preview=document.getElementById('preview');
-const pCanvas=document.getElementById('pCanvas');
-const pCtx=pCanvas.getContext('2d');
-const zoomLabel=document.getElementById('zoomLabel');
-const beforeBtn=document.getElementById('beforeAfter');
-const closeBtn=document.getElementById('closePreview');
-const zoomInBtn=document.getElementById('zoomIn');
-const zoomOutBtn=document.getElementById('zoomOut');
+  ctx.clearRect(0,0,size,size);
 
-let srcCanvas=null,showBefore=false,zoom=1,offsetX=0,offsetY=0,dragging=false,lastX=0,lastY=0;
+  const temp=document.createElement("canvas");
+  temp.width=img.width;
+  temp.height=img.height;
+  const tctx=temp.getContext("2d");
+  tctx.drawImage(img,0,0);
 
-function openPreview(canvas){
-  srcCanvas=canvas;
-  zoom=1;offsetX=0;offsetY=0;
-  pCanvas.width=canvas.width;
-  pCanvas.height=canvas.height;
-  showBefore=false;
-  drawPreview();
-  preview.classList.add('active');
-}
-
-function drawPreview(){
-  pCtx.setTransform(1,0,0,1,0,0);
-  pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
-  pCtx.translate(pCanvas.width/2+offsetX,pCanvas.height/2+offsetY);
-  pCtx.scale(zoom,zoom);
-  if(showBefore){
-    const tmp=document.createElement('canvas');
-    tmp.width=srcCanvas.width; tmp.height=srcCanvas.height;
-    tmp.getContext('2d').drawImage(srcCanvas,0,0);
-    pCtx.drawImage(tmp,-tmp.width/2,-tmp.height/2);
-  } else {
-    pCtx.drawImage(srcCanvas,-srcCanvas.width/2,-srcCanvas.height/2);
+  if(removeBg.checked){
+    const d=tctx.getImageData(0,0,temp.width,temp.height);
+    const data=d.data;
+    const r0=data[0],g0=data[1],b0=data[2];
+    const tol=+tolerance.value;
+    for(let i=0;i<data.length;i+=4){
+      if(Math.abs(data[i]-r0)<tol &&
+         Math.abs(data[i+1]-g0)<tol &&
+         Math.abs(data[i+2]-b0)<tol){
+        data[i+3]=0;
+      }
+    }
+    tctx.putImageData(d,0,0);
   }
-  zoomLabel.textContent=Math.round(zoom*100)+'%';
+
+  const scale=Math.min(size/img.width,size/img.height);
+  const nw=img.width*scale;
+  const nh=img.height*scale;
+  const x=(size-nw)/2;
+  const y=(size-nh)/2;
+
+  ctx.save();
+
+  if(+radius.value>0){
+    ctx.beginPath();
+    ctx.roundRect(0,0,size,size,+radius.value);
+    ctx.clip();
+  }
+
+  ctx.fillStyle=bgFill.value;
+  ctx.fillRect(0,0,size,size);
+
+  if(+shadowBlur.value>0){
+    ctx.shadowColor=`rgba(0,0,0,${shadowOpacity.value})`;
+    ctx.shadowBlur=+shadowBlur.value;
+    ctx.shadowOffsetX=+shadowX.value;
+    ctx.shadowOffsetY=+shadowY.value;
+  }
+
+  ctx.drawImage(temp,x,y,nw,nh);
+
+  ctx.shadowBlur=0;
+
+  if(applyOutline.checked && +outlineWidth.value>0){
+    ctx.lineWidth=+outlineWidth.value;
+    ctx.strokeStyle=outlineColor.value;
+    ctx.strokeRect(x,y,nw,nh);
+  }
+
+  if(+glowRadius.value>0){
+    ctx.shadowColor=glowColor.value;
+    ctx.shadowBlur=+glowRadius.value;
+    ctx.drawImage(temp,x,y,nw,nh);
+  }
+
+  if(rainbow.checked){
+    const grad=ctx.createLinearGradient(0,0,size,size);
+    grad.addColorStop(0,"red");
+    grad.addColorStop(.2,"orange");
+    grad.addColorStop(.4,"yellow");
+    grad.addColorStop(.6,"green");
+    grad.addColorStop(.8,"blue");
+    grad.addColorStop(1,"purple");
+    ctx.globalCompositeOperation="overlay";
+    ctx.fillStyle=grad;
+    ctx.fillRect(0,0,size,size);
+    ctx.globalCompositeOperation="source-over";
+  }
+
+  ctx.restore();
 }
 
-grid.addEventListener('click',e=>{
-  if(e.target.tagName==='CANVAS') openPreview(e.target);
-});
-
-pCanvas.ondblclick=()=>{zoom*=1.5;drawPreview()};
-pCanvas.onwheel=e=>{e.preventDefault();zoom*=e.deltaY<0?1.1:0.9;drawPreview()};
-pCanvas.onmousedown=e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;pCanvas.style.cursor='grabbing'};
-window.onmouseup=()=>{dragging=false;pCanvas.style.cursor='grab'};
-window.onmousemove=e=>{if(!dragging)return; offsetX+=e.clientX-lastX; offsetY+=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; drawPreview()};
-
-zoomInBtn.onclick=()=>{zoom*=1.2;drawPreview()};
-zoomOutBtn.onclick=()=>{zoom/=1.2;drawPreview()};
-closeBtn.onclick=()=>preview.classList.remove('active');
-beforeBtn.onclick=()=>{showBefore=!showBefore;drawPreview()};
-window.addEventListener('keydown',e=>{if(e.key==='Escape') preview.classList.remove('active')});
+document.getElementById("download").onclick=()=>{
+  const sizes=[128,256,512,1024];
+  items.forEach(item=>{
+    sizes.forEach(s=>{
+      const a=document.createElement("a");
+      a.href=item.canvas.toDataURL("image/png");
+      a.download=`Icon_${s}.png`;
+      a.click();
+    });
+  });
+};
 </script>
-
 </body>
 </html>
