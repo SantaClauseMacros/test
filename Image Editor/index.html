@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smart Auto Image Editor PRO</title>
+
+<style>
+body{
+  font-family:'Segoe UI',system-ui,sans-serif;
+  background:#f3f4f6;
+  margin:0;
+  padding:24px;
+  color:#111827
+}
+h1{margin-bottom:6px}
+p{color:#6b7280;margin-bottom:20px}
+.container{display:grid;grid-template-columns:1fr 380px;gap:24px}
+.panel{
+  background:#fff;
+  border-radius:16px;
+  padding:24px;
+  box-shadow:0 10px 30px rgba(0,0,0,.08);
+  border:1px solid #e5e7eb
+}
+.upload{
+  border:2px dashed #d1d5db;
+  padding:40px;
+  text-align:center;
+  border-radius:12px;
+  cursor:pointer;
+}
+.upload.dragover{
+  background:#eef2ff;
+  border-color:#6366f1
+}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:16px;
+  margin-top:16px
+}
+.thumb{
+  background:#fff;
+  border-radius:12px;
+  padding:6px;
+  position:relative;
+  border:1px solid #e5e7eb
+}
+.thumb button{
+  position:absolute;
+  top:4px;
+  right:4px;
+  background:#ef4444;
+  color:#fff;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
+canvas{
+  width:100%;
+  border-radius:8px;
+  display:block;
+  background:repeating-conic-gradient(#ccc 0% 25%,#fff 0% 50%) 50%/20px 20px
+}
+label{font-weight:600;display:block;margin-top:12px}
+input{width:100%;margin-top:6px}
+.toggle{display:flex;gap:8px;margin-top:10px;align-items:center}
+.progress{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:12px}
+.progress div{height:100%;width:0%;background:#6366f1}
+button.main{
+  margin-top:16px;
+  width:100%;
+  padding:14px;
+  font-weight:600;
+  background:linear-gradient(90deg,#6366f1,#818cf8);
+  color:#fff;
+  border-radius:10px;
+  border:none;
+  cursor:pointer
+}
+hr{margin:16px 0;border:none;border-top:1px solid #e5e7eb}
+</style>
+</head>
+
+<body>
+<h1>Smart Auto Image Editor PRO</h1>
+<p>Batch background removal, outline effects, square export & icon tools.</p>
+
+<div class="container">
+
+<div class="panel">
+  <div class="upload" id="dropZone">
+    <strong>Drop images or click</strong><br>
+    <small>PNG, JPG, WEBP</small>
+    <input type="file" id="fileInput" hidden multiple accept="image/*">
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="panel">
+
+  <label>Outline Width</label>
+  <input type="number" id="width" value="20">
+
+  <label>Outline Color</label>
+  <input type="color" id="color" value="#000000">
+
+  <label>Background Fill</label>
+  <input type="color" id="bgFill" value="#ffffff">
+
+  <label>Final Size</label>
+  <input type="number" id="finalSize" value="512">
+
+  <label>BG Tolerance</label>
+  <input type="number" id="tolerance" value="35">
+
+  <div class="toggle"><input type="checkbox" id="removeBg" checked><label>Remove Solid BG</label></div>
+  <div class="toggle"><input type="checkbox" id="cropEnabled" checked><label>Auto Crop</label></div>
+  <div class="toggle"><input type="checkbox" id="autoOutlineScale"><label>Auto Outline Scale</label></div>
+  <div class="toggle"><input type="checkbox" id="gradientOutline"><label>Gradient Outline</label></div>
+  <div class="toggle"><input type="checkbox" id="applyGlow"><label>Glow</label></div>
+  <div class="toggle"><input type="checkbox" id="applyShadow"><label>Drop Shadow</label></div>
+  <div class="toggle"><input type="checkbox" id="roundedMask"><label>Rounded Mask</label></div>
+  <div class="toggle"><input type="checkbox" id="rainbowOverlay"><label>Rainbow Overlay</label></div>
+  <div class="toggle"><input type="checkbox" id="multiSize"><label>Export 128 / 256 / 512</label></div>
+
+  <div class="progress"><div id="progress"></div></div>
+  <button class="main" id="download">Download All</button>
+
+</div>
+</div>
+
+<script>
+const grid=document.getElementById('grid');
+const dropZone=document.getElementById('dropZone');
+const fileInput=document.getElementById('fileInput');
+const progress=document.getElementById('progress');
+
+let items=new Map(),token=0;
+
+/* ---------- WORKER ---------- */
+const worker=new Worker(URL.createObjectURL(new Blob([`
+
+self.onmessage=async e=>{
+const d=e.data;
+const img=await createImageBitmap(d.file);
+const w=img.width,h=img.height;
+
+const base=new OffscreenCanvas(w,h);
+const ctx=base.getContext('2d');
+ctx.drawImage(img,0,0);
+
+/* BG REMOVE */
+if(d.removeBg){
+const imgData=ctx.getImageData(0,0,w,h);
+const px=imgData.data;
+const r0=px[0],g0=px[1],b0=px[2];
+for(let i=0;i<px.length;i+=4){
+const dr=px[i]-r0;
+const dg=px[i+1]-g0;
+const db=px[i+2]-b0;
+if(Math.sqrt(dr*dr+dg*dg+db*db)<d.tolerance)px[i+3]=0;
+}
+ctx.putImageData(imgData,0,0);
+}
+
+/* AUTO CROP */
+let minX=w,minY=h,maxX=0,maxY=0;
+if(d.cropEnabled){
+const px=ctx.getImageData(0,0,w,h).data;
+for(let y=0;y<h;y++)
+for(let x=0;x<w;x++)
+if(px[(y*w+x)*4+3]>0){
+minX=Math.min(minX,x);
+minY=Math.min(minY,y);
+maxX=Math.max(maxX,x);
+maxY=Math.max(maxY,y);
+}
+}
+if(maxX<minX){minX=0;minY=0;maxX=w-1;maxY=h-1;}
+
+let cw=maxX-minX+1;
+let ch=maxY-minY+1;
+let outline=d.width;
+if(d.autoOutlineScale)outline=Math.max(2,Math.floor(Math.max(cw,ch)*0.05));
+
+const pad=outline;
+const out=new OffscreenCanvas(cw+pad*2,ch+pad*2);
+const octx=out.getContext('2d');
+
+const tmp=new OffscreenCanvas(cw,ch);
+tmp.getContext('2d').drawImage(base,minX,minY,cw,ch,0,0,cw,ch);
+
+octx.fillStyle=d.bgFill;
+octx.fillRect(0,0,out.width,out.height);
+
+/* OUTLINE */
+if(outline>0){
+for(let y=-pad;y<=pad;y++)
+for(let x=-pad;x<=pad;x++)
+if(x*x+y*y<=pad*pad)
+octx.drawImage(tmp,pad+x,pad+y);
+
+octx.globalCompositeOperation='source-in';
+octx.fillStyle=d.color;
+octx.fillRect(0,0,out.width,out.height);
+octx.globalCompositeOperation='source-over';
+}
+
+/* SHADOW */
+if(d.applyShadow){
+octx.shadowColor="rgba(0,0,0,.4)";
+octx.shadowBlur=20;
+octx.shadowOffsetX=8;
+octx.shadowOffsetY=8;
+}
+
+/* GLOW */
+if(d.applyGlow){
+octx.shadowColor=d.color;
+octx.shadowBlur=outline*3;
+}
+
+octx.drawImage(tmp,pad,pad);
+octx.shadowBlur=0;
+
+/* ROUNDED */
+if(d.roundedMask){
+octx.globalCompositeOperation="destination-in";
+octx.beginPath();
+const r=Math.min(out.width,out.height)/5;
+octx.roundRect(0,0,out.width,out.height,r);
+octx.fill();
+octx.globalCompositeOperation="source-over";
+}
+
+/* RAINBOW */
+if(d.rainbowOverlay){
+const rainbowBlob=await fetch("rainbow.png").then(r=>r.blob());
+const rainbowBitmap=await createImageBitmap(rainbowBlob);
+const mask=octx.getImageData(0,0,out.width,out.height);
+octx.drawImage(rainbowBitmap,0,0,out.width,out.height);
+const data=octx.getImageData(0,0,out.width,out.height);
+for(let i=0;i<data.data.length;i+=4)
+data.data[i+3]=mask.data[i+3];
+octx.putImageData(data,0,0);
+}
+
+/* FORCE SQUARE */
+const size=d.finalSize;
+const square=new OffscreenCanvas(size,size);
+const sctx=square.getContext('2d');
+const scale=Math.min(size/out.width,size/out.height);
+const nw=out.width*scale;
+const nh=out.height*scale;
+const x=(size-nw)/2;
+const y=(size-nh)/2;
+sctx.drawImage(out,0,0,out.width,out.height,x,y,nw,nh);
+
+const blob=await square.convertToBlob({type:'image/png'});
+self.postMessage({id:d.id,blob,token:d.token});
+};
+
+`],{type:'application/javascript'})));
+
+/* ---------- UPLOAD ---------- */
+dropZone.onclick=()=>fileInput.click();
+dropZone.ondragover=e=>{e.preventDefault();dropZone.classList.add('dragover');};
+dropZone.ondragleave=()=>dropZone.classList.remove('dragover');
+dropZone.ondrop=e=>{
+e.preventDefault();
+dropZone.classList.remove('dragover');
+handleFiles(e.dataTransfer.files);
+};
+fileInput.onchange=()=>handleFiles(fileInput.files);
+
+function handleFiles(files){
+[...files].forEach(file=>{
+const id=crypto.randomUUID();
+const canvas=document.createElement('canvas');
+const wrap=document.createElement('div');
+wrap.className='thumb';
+const b=document.createElement('button');
+b.textContent='×';
+b.onclick=()=>{items.delete(id);wrap.remove();render();};
+wrap.append(b,canvas);
+grid.appendChild(wrap);
+items.set(id,{file,canvas});
+});
+render();
+}
+
+/* ---------- RENDER ---------- */
+function render(){
+token++;
+let done=0;
+progress.style.width='0%';
+
+items.forEach((item,id)=>{
+worker.postMessage({
+id,token,file:item.file,
+width:+width.value,
+color:color.value,
+bgFill:bgFill.value,
+finalSize:+finalSize.value,
+tolerance:+tolerance.value,
+removeBg:removeBg.checked,
+cropEnabled:cropEnabled.checked,
+autoOutlineScale:autoOutlineScale.checked,
+applyGlow:applyGlow.checked,
+applyShadow:applyShadow.checked,
+roundedMask:roundedMask.checked,
+rainbowOverlay:rainbowOverlay.checked
+});
+});
+
+worker.onmessage=e=>{
+if(e.data.token!==token)return;
+const item=items.get(e.data.id);
+const img=new Image();
+img.onload=()=>{
+item.canvas.width=img.width;
+item.canvas.height=img.height;
+item.canvas.getContext('2d').drawImage(img,0,0);
+done++;
+progress.style.width=(done/items.size*100)+'%';
+};
+img.src=URL.createObjectURL(e.data.blob);
+};
+}
+
+/* ---------- DOWNLOAD ---------- */
+download.onclick=()=>{
+const sizes=multiSize.checked?[128,256,512]:[+finalSize.value];
+items.forEach(item=>{
+sizes.forEach(size=>{
+const temp=document.createElement('canvas');
+temp.width=size;
+temp.height=size;
+temp.getContext('2d').drawImage(item.canvas,0,0,size,size);
+const a=document.createElement('a');
+a.href=temp.toDataURL('image/png');
+const base=item.file.name.replace(/\.[^/.]+$/,'');
+a.download=\`Edited \${base} \${size}x\${size}.png\`;
+a.click();
+});
+});
+};
+</script>
+</body>
+</html>
