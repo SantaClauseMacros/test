@@ -1,157 +1,384 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Full Image Editor</title>
+<title>Smart Image Editor Pro</title>
 <style>
-body{
-  background:#111;
-  color:white;
-  font-family:Arial;
-  text-align:center;
+:root{
+  --accent:#6366f1;
+  --accent2:#818cf8;
+  --bg:#0f172a;
+  --panel:#1e293b;
+  --border:#334155;
+  --text:#e2e8f0;
 }
-.controls{
-  margin:15px;
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,sans-serif;
+  background:linear-gradient(135deg,#0f172a,#1e293b);
+  color:var(--text);
+  padding:30px;
+}
+h1{margin:0 0 8px;font-size:28px}
+p{margin:0 0 20px;color:#94a3b8}
+
+.container{
+  display:grid;
+  grid-template-columns:1fr 380px;
+  gap:28px;
+}
+
+.panel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:24px;
+  box-shadow:0 20px 40px rgba(0,0,0,.4);
+}
+
+.upload{
+  border:2px dashed var(--border);
+  border-radius:14px;
+  padding:50px;
+  text-align:center;
+  cursor:pointer;
+  transition:.2s;
+}
+.upload:hover{border-color:var(--accent)}
+.upload.dragover{
+  background:rgba(99,102,241,.1);
+  border-color:var(--accent);
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:18px;
+  margin-top:18px;
+}
+
+.thumb{
+  background:#0f172a;
+  padding:8px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  position:relative;
+}
+.thumb button{
+  position:absolute;
+  top:6px;
+  right:6px;
+  background:#ef4444;
+  border:none;
+  color:white;
+  border-radius:6px;
+  width:22px;
+  height:22px;
+  cursor:pointer;
 }
 canvas{
-  border:2px solid white;
-  margin-top:10px;
-  max-width:90%;
+  width:100%;
+  border-radius:10px;
+  display:block;
 }
-input,button{
-  margin:6px;
+
+label{display:block;margin-top:14px;font-weight:600}
+input[type="number"],
+input[type="color"],
+input[type="range"]{
+  width:100%;
+  margin-top:6px;
+}
+
+.toggle{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:10px;
+}
+
+button.main{
+  margin-top:20px;
+  width:100%;
+  padding:14px;
+  font-weight:700;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  border:none;
+  border-radius:12px;
+  color:white;
+  cursor:pointer;
+  transition:.2s;
+}
+button.main:hover{transform:translateY(-2px)}
+
+.progress{
+  margin-top:14px;
+  height:8px;
+  background:#334155;
+  border-radius:999px;
+  overflow:hidden;
+}
+.progress div{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  transition:.2s;
 }
 </style>
 </head>
 <body>
 
-<h2>Full Image Editor</h2>
+<h1>Smart Image Editor Pro</h1>
+<p>Auto background removal, outlines, resizing & advanced processing.</p>
 
-<div class="controls">
-
-<input type="file" id="upload" accept="image/*"><br>
-
-<label>Background:
-<input type="color" id="bgColor" value="#000000">
-</label>
-
-<label>Outline Size:
-<input type="range" id="outlineSize" min="0" max="50" value="0">
-</label>
-
-<label>Outline Color:
-<input type="color" id="outlineColor" value="#ffffff">
-</label>
-
-<br>
-
-<label>
-<input type="checkbox" id="rainbowToggle">
-Rainbow Overlay
-</label>
-
-<br>
-
-<label>Output Quality (JPEG):
-<input type="range" id="quality" min="0.1" max="1" step="0.1" value="1">
-</label>
-
-<br>
-
-<button onclick="downloadPNG()">Download PNG</button>
-<button onclick="downloadJPG()">Download JPG</button>
-
+<div class="container">
+<div class="panel">
+<div class="upload" id="dropZone">
+<strong>Drop images or click</strong><br>
+<small>PNG, JPG, WEBP</small>
+<input type="file" id="fileInput" hidden multiple accept="image/*">
+</div>
+<div class="grid" id="grid"></div>
 </div>
 
-<canvas id="canvas"></canvas>
+<div class="panel">
+
+<label>Outline Width</label>
+<input type="number" id="outlineWidth" value="8" min="0" max="100">
+
+<label>Outline Color</label>
+<input type="color" id="outlineColor" value="#000000">
+
+<div class="toggle">
+<input type="checkbox" id="gradientOutline">
+<label for="gradientOutline">Gradient Outline</label>
+</div>
+
+<div class="toggle">
+<input type="checkbox" id="dropShadow">
+<label for="dropShadow">Drop Shadow</label>
+</div>
+
+<hr>
+
+<label>Background Tolerance</label>
+<input type="range" id="bgTolerance" min="0" max="150" value="40">
+
+<div class="toggle">
+<input type="checkbox" id="removeBg">
+<label for="removeBg">Remove Solid Background</label>
+</div>
+
+<div class="toggle">
+<input type="checkbox" id="autoCrop" checked>
+<label for="autoCrop">Auto Crop & Center</label>
+</div>
+
+<hr>
+
+<label>Output Width</label>
+<input type="number" id="outWidth" value="512">
+
+<label>Output Height</label>
+<input type="number" id="outHeight" value="512">
+
+<div class="toggle">
+<input type="checkbox" id="resizeEnabled" checked>
+<label for="resizeEnabled">Resize to Fixed Size</label>
+</div>
+
+<div class="toggle">
+<input type="checkbox" id="maintainAspect" checked>
+<label for="maintainAspect">Maintain Aspect Ratio</label>
+</div>
+
+<div class="toggle">
+<input type="checkbox" id="contrastBoost">
+<label for="contrastBoost">Contrast Boost</label>
+</div>
+
+<div class="progress"><div id="progress"></div></div>
+
+<button class="main" id="download">Download All</button>
+
+</div>
+</div>
 
 <script>
-const upload = document.getElementById("upload");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+const grid = document.getElementById("grid");
+const dropZone = document.getElementById("dropZone");
+const fileInput = document.getElementById("fileInput");
+const progress = document.getElementById("progress");
 
-const bgColor = document.getElementById("bgColor");
-const outlineSize = document.getElementById("outlineSize");
-const outlineColor = document.getElementById("outlineColor");
-const rainbowToggle = document.getElementById("rainbowToggle");
-const qualitySlider = document.getElementById("quality");
+let items = new Map();
+let token = 0;
 
-let img = new Image();
+/* Upload */
+dropZone.onclick=()=>fileInput.click();
+dropZone.ondragover=e=>{e.preventDefault();dropZone.classList.add("dragover")};
+dropZone.ondragleave=()=>dropZone.classList.remove("dragover");
+dropZone.ondrop=e=>{
+e.preventDefault();
+dropZone.classList.remove("dragover");
+handleFiles(e.dataTransfer.files);
+};
+fileInput.onchange=()=>handleFiles(fileInput.files);
 
-upload.addEventListener("change", e=>{
-  const file = e.target.files[0];
-  if(!file) return;
-
-  const reader = new FileReader();
-  reader.onload = ev=>{
-    img.onload = ()=>{
-      canvas.width = img.width;
-      canvas.height = img.height;
-      draw();
-    }
-    img.src = ev.target.result;
-  }
-  reader.readAsDataURL(file);
+function handleFiles(files){
+[...files].forEach(file=>{
+const id=crypto.randomUUID();
+const canvas=document.createElement("canvas");
+const wrap=document.createElement("div");
+wrap.className="thumb";
+const btn=document.createElement("button");
+btn.textContent="×";
+btn.onclick=()=>{items.delete(id);wrap.remove();render();}
+wrap.append(btn,canvas);
+grid.appendChild(wrap);
+items.set(id,{file,canvas});
 });
+render();
+}
 
-[bgColor, outlineSize, outlineColor, rainbowToggle].forEach(el=>{
-  el.addEventListener("input", draw);
+/* Processing */
+function render(){
+token++;
+let done=0;
+progress.style.width="0%";
+
+items.forEach((item,id)=>{
+processImage(item.file).then(blob=>{
+if(!items.has(id)) return;
+const img=new Image();
+img.onload=()=>{
+item.canvas.width=img.width;
+item.canvas.height=img.height;
+item.canvas.getContext("2d").drawImage(img,0,0);
+done++;
+progress.style.width=(done/items.size*100)+"%";
+};
+img.src=URL.createObjectURL(blob);
 });
-
-function draw(){
-  if(!img.src) return;
-
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  // Background
-  ctx.fillStyle = bgColor.value;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  // Outline
-  if(outlineSize.value > 0){
-    ctx.save();
-    ctx.lineWidth = outlineSize.value;
-    ctx.strokeStyle = outlineColor.value;
-    ctx.strokeRect(0,0,canvas.width,canvas.height);
-    ctx.restore();
-  }
-
-  // Image
-  ctx.drawImage(img,0,0);
-
-  // Rainbow overlay
-  if(rainbowToggle.checked){
-    const gradient = ctx.createLinearGradient(0,0,canvas.width,0);
-    gradient.addColorStop(0,"red");
-    gradient.addColorStop(0.16,"orange");
-    gradient.addColorStop(0.33,"yellow");
-    gradient.addColorStop(0.5,"green");
-    gradient.addColorStop(0.66,"blue");
-    gradient.addColorStop(0.83,"indigo");
-    gradient.addColorStop(1,"violet");
-
-    ctx.globalAlpha = 0.4;
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.globalAlpha = 1;
-  }
+});
 }
 
-function downloadPNG(){
-  const link = document.createElement("a");
-  link.download = "edited.png";
-  link.href = canvas.toDataURL("image/png");
-  link.click();
+async function processImage(file){
+const img = await createImageBitmap(file);
+let canvas = new OffscreenCanvas(img.width,img.height);
+let ctx = canvas.getContext("2d");
+
+if(document.getElementById("contrastBoost").checked){
+ctx.filter="contrast(110%) saturate(110%)";
+}
+ctx.drawImage(img,0,0);
+
+if(document.getElementById("removeBg").checked){
+let tol = +document.getElementById("bgTolerance").value;
+let data = ctx.getImageData(0,0,canvas.width,canvas.height);
+let d=data.data;
+let br=d[0], bg=d[1], bb=d[2];
+for(let i=0;i<d.length;i+=4){
+if(Math.abs(d[i]-br)+Math.abs(d[i+1]-bg)+Math.abs(d[i+2]-bb)<tol){
+d[i+3]=0;
+}
+}
+ctx.putImageData(data,0,0);
 }
 
-function downloadJPG(){
-  const q = parseFloat(qualitySlider.value);
-  const link = document.createElement("a");
-  link.download = "edited.jpg";
-  link.href = canvas.toDataURL("image/jpeg", q);
-  link.click();
+/* Auto Crop */
+if(document.getElementById("autoCrop").checked){
+let data = ctx.getImageData(0,0,canvas.width,canvas.height);
+let d=data.data;
+let minX=canvas.width,minY=canvas.height,maxX=0,maxY=0;
+for(let y=0;y<canvas.height;y++){
+for(let x=0;x<canvas.width;x++){
+if(d[(y*canvas.width+x)*4+3]>0){
+minX=Math.min(minX,x);
+minY=Math.min(minY,y);
+maxX=Math.max(maxX,x);
+maxY=Math.max(maxY,y);
 }
+}}
+if(maxX>minX){
+let cw=maxX-minX;
+let ch=maxY-minY;
+let cropped=new OffscreenCanvas(cw,ch);
+cropped.getContext("2d").drawImage(canvas,minX,minY,cw,ch,0,0,cw,ch);
+canvas=cropped;
+ctx=canvas.getContext("2d");
+}
+}
+
+/* Outline */
+let outline = +document.getElementById("outlineWidth").value;
+if(outline>0){
+let out=new OffscreenCanvas(canvas.width+outline*2,canvas.height+outline*2);
+let octx=out.getContext("2d");
+
+if(document.getElementById("dropShadow").checked){
+octx.shadowColor="rgba(0,0,0,.5)";
+octx.shadowBlur=20;
+octx.shadowOffsetX=6;
+octx.shadowOffsetY=6;
+}
+
+for(let y=-outline;y<=outline;y++){
+for(let x=-outline;x<=outline;x++){
+if(x*x+y*y<=outline*outline)
+octx.drawImage(canvas,outline+x,outline+y);
+}
+}
+
+octx.globalCompositeOperation="source-in";
+if(document.getElementById("gradientOutline").checked){
+let grad=octx.createLinearGradient(0,0,out.width,out.height);
+grad.addColorStop(0,"#ff00ff");
+grad.addColorStop(1,"#00ffff");
+octx.fillStyle=grad;
+}else{
+octx.fillStyle=document.getElementById("outlineColor").value;
+}
+octx.fillRect(0,0,out.width,out.height);
+
+octx.globalCompositeOperation="source-over";
+octx.drawImage(canvas,outline,outline);
+canvas=out;
+ctx=octx;
+}
+
+/* Resize */
+if(document.getElementById("resizeEnabled").checked){
+let rw=+document.getElementById("outWidth").value;
+let rh=+document.getElementById("outHeight").value;
+let resized=new OffscreenCanvas(rw,rh);
+let rctx=resized.getContext("2d");
+rctx.imageSmoothingEnabled=true;
+rctx.imageSmoothingQuality="high";
+
+if(document.getElementById("maintainAspect").checked){
+let scale=Math.min(rw/canvas.width,rh/canvas.height);
+let nw=canvas.width*scale;
+let nh=canvas.height*scale;
+rctx.drawImage(canvas,(rw-nw)/2,(rh-nh)/2,nw,nh);
+}else{
+rctx.drawImage(canvas,0,0,rw,rh);
+}
+canvas=resized;
+}
+
+return await canvas.convertToBlob({type:"image/png"});
+}
+
+/* Download */
+document.getElementById("download").onclick=()=>{
+items.forEach(item=>{
+const a=document.createElement("a");
+a.href=item.canvas.toDataURL("image/png");
+a.download="Edited_"+Date.now()+".png";
+a.click();
+});
+};
 </script>
-
 </body>
 </html>
