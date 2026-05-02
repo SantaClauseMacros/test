@@ -28,7 +28,7 @@ p{color:var(--muted);margin-bottom:22px}
 .upload.dragover{background:#eef2ff;border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:18px;margin-top:20px}
 .thumb{position:relative;border-radius:14px;padding:8px;border:1px solid var(--border);background:#fff}
-.thumb button{position:absolute;top:6px;right:6px;width:26px;height:26px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer}
+.thumb button.del{position:absolute;top:6px;right:6px;width:26px;height:26px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer}
 canvas{width:100%;border-radius:10px;display:block;background:repeating-conic-gradient(#c7d2fe 0% 25%,#fff 0% 50%) 50%/18px 18px;cursor:zoom-in}
 label{font-weight:600;margin-top:16px;display:block}
 input,select{width:100%;margin-top:6px;padding:10px 12px;border-radius:10px;border:1px solid var(--border)}
@@ -38,6 +38,21 @@ input[type="checkbox"]{width:auto;accent-color:var(--primary)}
 .progress div{height:100%;width:0%;background:linear-gradient(90deg,var(--primary),var(--primary-2));transition:width .2s ease}
 button.main{margin-top:18px;width:100%;padding:15px;font-weight:700;font-size:1rem;border:none;border-radius:14px;background:linear-gradient(90deg,var(--primary),var(--primary-2));color:#fff;cursor:pointer;box-shadow:0 10px 24px rgba(99,102,241,.35)}
 button.main:hover{filter:brightness(1.05)}
+
+/* API key box */
+.api-box{background:#f5f3ff;border:1px solid #c4b5fd;border-radius:12px;padding:14px;margin-bottom:16px}
+.api-box > label{margin-top:0;color:#4338ca;font-size:.88rem}
+.api-row{display:flex;gap:6px;margin-top:6px}
+.api-row input{flex:1;margin-top:0;font-size:.82rem}
+.api-row button{padding:9px 14px;font-size:.82rem;font-weight:600;border:none;border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;white-space:nowrap}
+.api-status{font-size:.75rem;margin-top:7px;display:flex;align-items:center;gap:5px;color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dot-on{background:#22c55e;box-shadow:0 0 5px #22c55e}
+.dot-off{background:#9ca3af}
+.badge{position:absolute;bottom:26px;left:6px;font-size:.58rem;font-weight:600;padding:2px 6px;border-radius:99px}
+.badge-ai{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
+.badge-man{background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd}
+.badge-proc{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
 
 /* Preview Modal */
 #preview{position:fixed;inset:0;background:rgba(15,23,42,.85);display:none;align-items:center;justify-content:center;z-index:9999}
@@ -51,7 +66,7 @@ button.main:hover{filter:brightness(1.05)}
 <body>
 
 <h1>Smart Auto Image Editor</h1>
-<p>Batch icon processing: remove background, crop, center, resize, outline, shadow, rainbow & export.</p>
+<p>Batch icon processing: remove background, crop, center, resize, outline, shadow, rainbow &amp; export.</p>
 
 <div class="container">
 <div class="panel">
@@ -64,6 +79,20 @@ button.main:hover{filter:brightness(1.05)}
 </div>
 
 <div class="panel">
+
+<div class="api-box">
+  <label>🤖 Clipdrop API Key <span style="font-weight:400;color:var(--muted)">(100 free/day)</span></label>
+  <div class="api-row">
+    <input type="text" id="apiKey" placeholder="sk-..." autocomplete="off" spellcheck="false">
+    <button id="saveKey">Save</button>
+  </div>
+  <div class="api-status">
+    <span class="dot dot-off" id="apiDot"></span>
+    <span id="apiStatusText">No key — using manual removal</span>
+  </div>
+  <div style="font-size:.72rem;color:var(--muted);margin-top:5px">Get a free key → <a href="https://clipdrop.co/apis" target="_blank" style="color:var(--primary)">clipdrop.co/apis</a></div>
+</div>
+
 <label>Output Size</label>
 <select id="size">
   <option value="0">Original</option>
@@ -72,9 +101,9 @@ button.main:hover{filter:brightness(1.05)}
   <option value="512">512 × 512</option>
 </select>
 
-<div class="toggle"><input type="checkbox" id="crop" checked> Auto-crop & center</div>
+<div class="toggle"><input type="checkbox" id="crop" checked> Auto-crop &amp; center</div>
 <div class="toggle"><input type="checkbox" id="removeBg" checked> Remove background</div>
-<label>Background Tolerance</label>
+<label>Background Tolerance <span id="bgNote" style="font-weight:400;color:var(--muted);font-size:.8rem">(manual fallback only)</span></label>
 <input type="range" id="bgTol" min="0" max="100" value="30">
 
 <div class="toggle"><input type="checkbox" id="outline"> Outline</div>
@@ -107,33 +136,26 @@ button.main:hover{filter:brightness(1.05)}
 </div>
 
 <script>
-const rainbowBase64=
-const grid=document.getElementById('grid');
-const dropZone=document.getElementById('dropZone');
-const fileInput=document.getElementById('fileInput');
-const size=document.getElementById('size');
-const crop=document.getElementById('crop');
-const removeBg=document.getElementById('removeBg');
-const bgTol=document.getElementById('bgTol');
-const outline=document.getElementById('outline');
-const outlineW=document.getElementById('outlineW');
-const outlineC=document.getElementById('outlineC');
-const shadow=document.getElementById('shadow');
-const shadowBlur=document.getElementById('shadowBlur');
-const rainbow=document.getElementById('rainbow');
-const progress=document.getElementById('progress');
+/* ---- Rainbow ---- */
+function makeRainbow(){
+  const c=document.createElement('canvas');c.width=256;c.height=256;
+  const ctx=c.getContext('2d'),g=ctx.createLinearGradient(0,0,256,256);
+  ['#ff0000','#ff8800','#ffff00','#00ff00','#0088ff','#8800ff','#ff00ff']
+    .forEach((col,i,a)=>g.addColorStop(i/(a.length-1),col));
+  ctx.fillStyle=g;ctx.fillRect(0,0,256,256);return c.toDataURL();
+}
+const rainbowDataURL=makeRainbow();
 
-let items=new Map(),token=0,done=0;
-
-/* ---------- WORKER ---------- */
+/* ---- Worker ---- */
 const worker=new Worker(URL.createObjectURL(new Blob([`
 self.onmessage=async e=>{
-  const d=e.data,img=await createImageBitmap(d.file);
+  const d=e.data;
+  let img=await createImageBitmap(d.blob);
   let w=img.width,h=img.height;
   let base=new OffscreenCanvas(w,h),ctx=base.getContext('2d');
   ctx.drawImage(img,0,0);
 
-  if(d.removeBg){
+  if(d.removeBg&&!d.bgDone){
     let idata=ctx.getImageData(0,0,w,h),p=idata.data;
     let r0=p[0],g0=p[1],b0=p[2];
     for(let i=0;i<p.length;i+=4){
@@ -148,8 +170,8 @@ self.onmessage=async e=>{
     let pdata=ctx.getImageData(0,0,w,h).data;
     for(let y=0;y<h;y++)for(let x=0;x<w;x++)
       if(pdata[(y*w+x)*4+3]>0){
-        minX=Math.min(minX,x); minY=Math.min(minY,y);
-        maxX=Math.max(maxX,x); maxY=Math.max(maxY,y);
+        minX=Math.min(minX,x);minY=Math.min(minY,y);
+        maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);
       }
   }
   if(maxX<minX){minX=0;minY=0;maxX=w-1;maxY=h-1;}
@@ -179,7 +201,7 @@ self.onmessage=async e=>{
   }
 
   if(d.rainbow){
-    let rb=await createImageBitmap(await (await fetch(d.rainbowBase64)).blob());
+    let rb=await createImageBitmap(await (await fetch(d.rainbowURL)).blob());
     let mask=octx.getImageData(0,0,out.width,out.height);
     octx.drawImage(rb,0,0,out.width,out.height);
     let r=octx.getImageData(0,0,out.width,out.height);
@@ -199,120 +221,154 @@ self.onmessage=async e=>{
 };
 `],{type:'application/javascript'})));
 
-/* ---------- WORKER HANDLER ---------- */
-worker.onmessage=e=>{
- if(e.data.token!==token)return;
- let it=items.get(e.data.id);
- let img=new Image();
- img.onload=()=>{
-   it.canvas.width=img.width;
-   it.canvas.height=img.height;
-   it.canvas.getContext('2d').drawImage(img,0,0);
-   done++;
-   progress.style.width=(done/items.size*100)+'%';
- };
- img.src=URL.createObjectURL(e.data.blob);
+/* ---- State ---- */
+let items=new Map(),token=0,done=0;
+let apiKey=localStorage.getItem('clipdrop_key')||'';
+
+/* ---- Elements ---- */
+const grid=document.getElementById('grid');
+const dropZone=document.getElementById('dropZone');
+const fileInput=document.getElementById('fileInput');
+const apiKeyInput=document.getElementById('apiKey');
+const apiDot=document.getElementById('apiDot');
+const apiStatusText=document.getElementById('apiStatusText');
+const progress=document.getElementById('progress');
+
+/* ---- API key UI ---- */
+if(apiKey){apiKeyInput.value=apiKey;updateKeyUI();}
+function updateKeyUI(){
+  const has=!!apiKey.trim();
+  apiDot.className='dot '+(has?'dot-on':'dot-off');
+  apiStatusText.textContent=has?'Clipdrop AI active — 100 free/day':'No key — using manual removal';
+}
+document.getElementById('saveKey').onclick=function(){
+  apiKey=apiKeyInput.value.trim();
+  localStorage.setItem('clipdrop_key',apiKey);
+  updateKeyUI();render();
+  this.textContent='✓';setTimeout(()=>this.textContent='Save',1200);
 };
 
-/* ---------- UPLOAD ---------- */
-dropZone.onclick=()=>fileInput.click();
+/* ---- Worker handler ---- */
+worker.onmessage=e=>{
+  if(e.data.token!==token)return;
+  const it=items.get(e.data.id);if(!it)return;
+  const img=new Image();
+  img.onload=()=>{
+    it.canvas.width=img.width;it.canvas.height=img.height;
+    it.canvas.getContext('2d').drawImage(img,0,0);
+    if(it.badge){
+      it.badge.textContent=it.usedAI?'AI':'manual';
+      it.badge.className='badge '+(it.usedAI?'badge-ai':'badge-man');
+    }
+    done++;
+    progress.style.width=(done/items.size*100)+'%';
+  };
+  img.src=URL.createObjectURL(e.data.blob);
+};
+
+/* ---- Clipdrop ---- */
+async function clipdropRemoveBg(file){
+  const fd=new FormData();fd.append('image_file',file,file.name);
+  const res=await fetch('https://clipdrop-api.co/remove-background/v1',{
+    method:'POST',headers:{'x-api-key':apiKey},body:fd
+  });
+  if(!res.ok) throw new Error(res.status);
+  return res.blob();
+}
+
+/* ---- Upload ---- */
+dropZone.onclick=e=>{if(!e.target.matches('input'))fileInput.click()};
 dropZone.ondragover=e=>{e.preventDefault();dropZone.classList.add('dragover')};
 dropZone.ondragleave=()=>dropZone.classList.remove('dragover');
 dropZone.ondrop=e=>{e.preventDefault();dropZone.classList.remove('dragover');handleFiles(e.dataTransfer.files)};
 fileInput.onchange=()=>handleFiles(fileInput.files);
 
 function handleFiles(files){
- [...files].forEach(file=>{
-   const id=crypto.randomUUID();
-   const canvas=document.createElement('canvas');
-   const wrap=document.createElement('div'); wrap.className='thumb';
-   const b=document.createElement('button'); b.textContent='×';
-   b.onclick=()=>{items.delete(id);wrap.remove();render();};
-   wrap.append(b,canvas);
-   grid.appendChild(wrap);
-   items.set(id,{file,canvas,original:file});
- });
- render();
+  [...files].forEach(file=>{
+    const id=crypto.randomUUID();
+    const canvas=document.createElement('canvas');
+    canvas.onclick=()=>openPreview(canvas);
+    const badge=document.createElement('span');
+    badge.className='badge badge-proc';badge.textContent='…';
+    const b=document.createElement('button');b.className='del';b.textContent='×';
+    b.onclick=()=>{items.delete(id);wrap.remove();render();};
+    const wrap=document.createElement('div');wrap.className='thumb';
+    wrap.append(b,canvas,badge);
+    grid.appendChild(wrap);
+    items.set(id,{file,canvas,badge,usedAI:false});
+  });
+  render();
 }
 
-/* ---------- RENDER ---------- */
-function render(){
- token++; done=0; progress.style.width='0%';
- items.forEach((it,id)=>{
-   worker.postMessage({
-     id,token,file:it.file,removeBg:removeBg.checked,bgTol:+bgTol.value,
-     crop:crop.checked,outline:outline.checked,outW:+outlineW.value,outC:outlineC.value,
-     shadow:shadow.checked,shadowBlur:+shadowBlur.value,
-     rainbow:rainbow.checked,size:+size.value,rainbowBase64
-   });
- });
+/* ---- Render ---- */
+async function render(){
+  token++;done=0;progress.style.width='0%';
+  const doRemoveBg=document.getElementById('removeBg').checked;
+  const useAI=doRemoveBg&&!!apiKey.trim();
+  for(const [id,it] of items){
+    it.badge.className='badge badge-proc';it.badge.textContent='…';
+    let blob=it.file,bgDone=false;
+    if(useAI){
+      try{blob=await clipdropRemoveBg(it.file);bgDone=true;it.usedAI=true;}
+      catch(err){console.warn('Clipdrop failed:',err.message);it.usedAI=false;}
+    } else {it.usedAI=false;}
+    worker.postMessage({
+      id,token,blob,bgDone,
+      removeBg:doRemoveBg,bgTol:+document.getElementById('bgTol').value,
+      crop:document.getElementById('crop').checked,
+      outline:document.getElementById('outline').checked,
+      outW:+document.getElementById('outlineW').value,
+      outC:document.getElementById('outlineC').value,
+      shadow:document.getElementById('shadow').checked,
+      shadowBlur:+document.getElementById('shadowBlur').value,
+      rainbow:document.getElementById('rainbow').checked,
+      size:+document.getElementById('size').value,
+      rainbowURL:rainbowDataURL
+    });
+  }
 }
-document.querySelectorAll('input,select').forEach(el=>el.oninput=render);
+let rt;
+document.querySelectorAll('input,select').forEach(el=>el.oninput=()=>{clearTimeout(rt);rt=setTimeout(render,300)});
 
-/* ---------- DOWNLOAD ---------- */
+/* ---- Download ---- */
 document.getElementById('download').onclick=()=>{
- items.forEach(it=>{
-   const a=document.createElement('a');
-   a.href=it.canvas.toDataURL("image/png");
-   a.download=it.file.name.replace(/\.[^/.]+$/,"")+".png";
-   a.click();
- });
+  items.forEach(it=>{
+    const a=document.createElement('a');
+    a.href=it.canvas.toDataURL('image/png');
+    a.download=it.file.name.replace(/\.[^/.]+$/,'')+'.png';
+    a.click();
+  });
 };
 
-/* ---------- PREVIEW ---------- */
+/* ---- Preview ---- */
 const preview=document.getElementById('preview');
 const pCanvas=document.getElementById('pCanvas');
 const pCtx=pCanvas.getContext('2d');
 const zoomLabel=document.getElementById('zoomLabel');
-const beforeBtn=document.getElementById('beforeAfter');
-const closeBtn=document.getElementById('closePreview');
-const zoomInBtn=document.getElementById('zoomIn');
-const zoomOutBtn=document.getElementById('zoomOut');
-
-let srcCanvas=null,showBefore=false,zoom=1,offsetX=0,offsetY=0,dragging=false,lastX=0,lastY=0;
+let srcCanvas=null,zoom=1,offsetX=0,offsetY=0,dragging=false,lastX=0,lastY=0;
 
 function openPreview(canvas){
-  srcCanvas=canvas;
-  zoom=1;offsetX=0;offsetY=0;
-  pCanvas.width=canvas.width;
-  pCanvas.height=canvas.height;
-  showBefore=false;
-  drawPreview();
-  preview.classList.add('active');
+  srcCanvas=canvas;zoom=1;offsetX=0;offsetY=0;
+  pCanvas.width=canvas.width;pCanvas.height=canvas.height;
+  drawPreview();preview.classList.add('active');
 }
-
 function drawPreview(){
-  pCtx.setTransform(1,0,0,1,0,0);
-  pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
+  pCtx.setTransform(1,0,0,1,0,0);pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
   pCtx.translate(pCanvas.width/2+offsetX,pCanvas.height/2+offsetY);
   pCtx.scale(zoom,zoom);
-  if(showBefore){
-    const tmp=document.createElement('canvas');
-    tmp.width=srcCanvas.width; tmp.height=srcCanvas.height;
-    tmp.getContext('2d').drawImage(srcCanvas,0,0);
-    pCtx.drawImage(tmp,-tmp.width/2,-tmp.height/2);
-  } else {
-    pCtx.drawImage(srcCanvas,-srcCanvas.width/2,-srcCanvas.height/2);
-  }
+  pCtx.drawImage(srcCanvas,-srcCanvas.width/2,-srcCanvas.height/2);
   zoomLabel.textContent=Math.round(zoom*100)+'%';
 }
-
-grid.addEventListener('click',e=>{
-  if(e.target.tagName==='CANVAS') openPreview(e.target);
-});
-
 pCanvas.ondblclick=()=>{zoom*=1.5;drawPreview()};
 pCanvas.onwheel=e=>{e.preventDefault();zoom*=e.deltaY<0?1.1:0.9;drawPreview()};
 pCanvas.onmousedown=e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;pCanvas.style.cursor='grabbing'};
-window.onmouseup=()=>{dragging=false;pCanvas.style.cursor='grab'};
-window.onmousemove=e=>{if(!dragging)return; offsetX+=e.clientX-lastX; offsetY+=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; drawPreview()};
-
-zoomInBtn.onclick=()=>{zoom*=1.2;drawPreview()};
-zoomOutBtn.onclick=()=>{zoom/=1.2;drawPreview()};
-closeBtn.onclick=()=>preview.classList.remove('active');
-beforeBtn.onclick=()=>{showBefore=!showBefore;drawPreview()};
-window.addEventListener('keydown',e=>{if(e.key==='Escape') preview.classList.remove('active')});
+window.onmouseup=()=>{dragging=false;if(pCanvas)pCanvas.style.cursor='grab'};
+window.onmousemove=e=>{if(!dragging)return;offsetX+=e.clientX-lastX;offsetY+=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;drawPreview()};
+document.getElementById('zoomIn').onclick=()=>{zoom*=1.2;drawPreview()};
+document.getElementById('zoomOut').onclick=()=>{zoom/=1.2;drawPreview()};
+document.getElementById('closePreview').onclick=()=>preview.classList.remove('active');
+document.getElementById('beforeAfter').onclick=()=>{};
+window.addEventListener('keydown',e=>{if(e.key==='Escape')preview.classList.remove('active')});
 </script>
-
 </body>
 </html>
