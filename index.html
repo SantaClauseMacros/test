@@ -111,6 +111,12 @@ button.main:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
   <option value="512">512 × 512</option>
 </select>
 
+<label for="format">Output Format</label>
+<select id="format" class="opt">
+  <option value="png" selected>PNG (recommended, keeps transparency)</option>
+  <option value="original">Keep original file type</option>
+</select>
+
 <div class="toggle"><input type="checkbox" id="crop" class="opt" checked> <label for="crop" style="margin:0;font-weight:500">Auto-crop &amp; center</label></div>
 <div class="toggle"><input type="checkbox" id="removeBg" class="opt" checked> <label for="removeBg" style="margin:0;font-weight:500">Remove background</label></div>
 <label for="bgTol">Background Tolerance <span style="font-weight:400;color:var(--muted);font-size:.8rem">(manual fallback only)</span></label>
@@ -317,8 +323,29 @@ self.onmessage = async function(e){
       out = f;
     }
 
-    var blob = await out.convertToBlob({type:'image/png'});
-    self.postMessage({id:d.id, blob:blob, token:d.token});
+    // Output format: PNG always preserves transparency from the effects above.
+    // "original" re-encodes as the source mime type when it supports alpha-less
+    // export cleanly (jpeg/webp); anything else (or an unrecognized type) falls
+    // back to PNG so transparency isn't silently destroyed.
+    var mime = 'image/png';
+    if(d.keepOriginalFormat){
+      var srcType = (d.origType || '').toLowerCase();
+      if(srcType === 'image/jpeg' || srcType === 'image/jpg' || srcType === 'image/webp'){
+        mime = srcType === 'image/jpg' ? 'image/jpeg' : srcType;
+      }
+    }
+    if(mime !== 'image/png'){
+      // Flatten transparency onto white before encoding to a format without alpha support parity issues (jpeg has none at all).
+      var flat = new OffscreenCanvas(out.width, out.height);
+      var flatCtx = flat.getContext('2d');
+      flatCtx.fillStyle = '#ffffff';
+      flatCtx.fillRect(0,0,out.width,out.height);
+      flatCtx.drawImage(out,0,0);
+      out = flat;
+    }
+
+    var blob = await out.convertToBlob({type:mime, quality: mime === 'image/png' ? undefined : 0.92});
+    self.postMessage({id:d.id, blob:blob, mime:mime, token:d.token});
   }catch(err){
     self.postMessage({id:d.id, token:d.token, error:(err && err.message) || String(err)});
   }
@@ -381,6 +408,7 @@ worker.onmessage = e => {
     return;
   }
 
+  it.outMime = e.data.mime || 'image/png';
   const url = URL.createObjectURL(e.data.blob);
   const img = new Image();
   img.onload = () => {
@@ -458,7 +486,7 @@ function handleFiles(files){
     const origImg = new Image();
     origImg.src = origURL;
 
-    const it = {file, canvas, badge, wrap, origImg, origURL, usedAI:false, aiBlob:null, aiFailed:false, ready:false};
+    const it = {file, canvas, badge, wrap, origImg, origURL, usedAI:false, aiBlob:null, aiFailed:false, ready:false, outMime:'image/png'};
     items.set(id, it);
 
     canvas.onclick = () => openPreview(it);
@@ -491,6 +519,8 @@ async function render(){
   processing = true;
   setBusy(true);
 
+  const keepOriginalFormat = document.getElementById('format').value === 'original';
+
   const opts = {
     removeBg:  document.getElementById('removeBg').checked,
     bgTol:    +document.getElementById('bgTol').value,
@@ -501,7 +531,8 @@ async function render(){
     shadow:    document.getElementById('shadow').checked,
     shadowBlur:+document.getElementById('shadowBlur').value,
     rainbow:   document.getElementById('rainbow').checked,
-    size:     +document.getElementById('size').value
+    size:     +document.getElementById('size').value,
+    keepOriginalFormat: keepOriginalFormat
   };
   const useAI = opts.removeBg && !!apiKey.trim();
 
@@ -525,7 +556,7 @@ async function render(){
       } else { it.usedAI = false; }
     } else { it.usedAI = false; }
 
-    worker.postMessage(Object.assign({id, token:myToken, blob, bgDone}, opts));
+    worker.postMessage(Object.assign({id, token:myToken, blob, bgDone, origType: it.file.type}, opts));
   }
 }
 
@@ -535,6 +566,11 @@ document.querySelectorAll('#controls .opt').forEach(el => {
 });
 
 /* ---- Download ---- */
+function extFor(mime){
+  if(mime === 'image/jpeg') return '.jpg';
+  if(mime === 'image/webp') return '.webp';
+  return '.png';
+}
 downloadBtn.onclick = async () => {
   if(!items.size){ alert('Add some images first.'); return; }
   const ready = [...items.values()].filter(it => it.ready);
@@ -546,11 +582,12 @@ downloadBtn.onclick = async () => {
 
   for(const it of ready){
     const stem = it.file.name.replace(/\.[^/.]+$/,'') || 'image';
-    let name = stem + '.png', n = 1;
-    while(used.has(name)) name = stem + '-' + (++n) + '.png';
+    const ext = extFor(it.outMime);
+    let name = stem + ext, n = 1;
+    while(used.has(name)) name = stem + '-' + (++n) + ext;
     used.add(name);
 
-    const blob = await new Promise(r => it.canvas.toBlob(r,'image/png'));
+    const blob = await new Promise(r => it.canvas.toBlob(r, it.outMime, it.outMime === 'image/png' ? undefined : 0.92));
     if(!blob) continue;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
