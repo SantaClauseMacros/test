@@ -66,7 +66,9 @@ button.main:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
 /* Preview Modal */
 #preview{position:fixed;inset:0;background:rgba(15,23,42,.85);display:none;align-items:center;justify-content:center;z-index:9999}
 #preview.active{display:flex}
-#pCanvas{max-width:90vw;max-height:86vh;cursor:grab;border-radius:10px;background:repeating-conic-gradient(#475569 0% 25%,#334155 0% 50%) 50%/22px 22px}
+#previewStage{position:relative;line-height:0}
+#pCanvas{display:block;max-width:90vw;max-height:86vh;cursor:grab;border-radius:10px;background:repeating-conic-gradient(#475569 0% 25%,#334155 0% 50%) 50%/22px 22px}
+#pCanvas.cropping{cursor:crosshair}
 #toolbar{position:absolute;top:20px;right:20px;background:#fff;border-radius:14px;padding:10px;display:flex;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,.3);align-items:center}
 #toolbar button{border:none;background:var(--primary);color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;font:inherit}
 #toolbar span{font-weight:600;min-width:60px;text-align:center}
@@ -113,9 +115,13 @@ button.main:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
 
 <label for="format">Output Format</label>
 <select id="format" class="opt">
-  <option value="png" selected>PNG (recommended, keeps transparency)</option>
+  <option value="png" selected>PNG (keeps transparency)</option>
+  <option value="jpeg">JPEG (smaller, white background)</option>
+  <option value="webp">WEBP (smaller, keeps transparency)</option>
   <option value="original">Keep original file type</option>
 </select>
+<label for="quality" id="qualityLabel">Quality <span style="font-weight:400;color:var(--muted);font-size:.8rem">(92%)</span></label>
+<input type="range" id="quality" class="opt" min="10" max="100" value="92">
 
 <div class="toggle"><input type="checkbox" id="crop" class="opt" checked> <label for="crop" style="margin:0;font-weight:500">Auto-crop &amp; center</label></div>
 <div class="toggle"><input type="checkbox" id="removeBg" class="opt" checked> <label for="removeBg" style="margin:0;font-weight:500">Remove background</label></div>
@@ -134,6 +140,14 @@ button.main:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
 
 <div class="toggle"><input type="checkbox" id="rainbow" class="opt"> <label for="rainbow" style="margin:0;font-weight:500">Rainbow Overlay</label></div>
 
+<label for="flip">Flip</label>
+<select id="flip" class="opt">
+  <option value="none" selected>None</option>
+  <option value="h">Horizontal</option>
+  <option value="v">Vertical</option>
+  <option value="both">Both</option>
+</select>
+
 <div class="progress"><div id="progress"></div></div>
 <button class="main" id="download" type="button">Download All</button>
 <div class="hint" id="dlHint">Your browser may ask to allow multiple downloads.</div>
@@ -142,13 +156,19 @@ button.main:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
 
 <!-- Preview Modal -->
 <div id="preview">
-  <canvas id="pCanvas"></canvas>
+  <div id="previewStage">
+    <canvas id="pCanvas"></canvas>
+  </div>
   <div id="toolbar">
     <button id="beforeAfter" type="button">Show original</button>
-    <button id="zoomOut" type="button">−</button>
-    <span id="zoomLabel">100%</span>
-    <button id="zoomIn" type="button">+</button>
-    <button id="resetZoom" type="button">Fit</button>
+    <button id="cropToggle" type="button">Crop</button>
+    <button id="cropApply" type="button" class="crop-only" style="display:none;background:#22c55e">Apply</button>
+    <button id="cropCancel" type="button" class="crop-only" style="display:none;background:#6b7280">Cancel</button>
+    <button id="cropClear" type="button" style="display:none;background:#ef4444">Clear crop</button>
+    <button id="zoomOut" type="button" class="view-only">−</button>
+    <span id="zoomLabel" class="view-only">100%</span>
+    <button id="zoomIn" type="button" class="view-only">+</button>
+    <button id="resetZoom" type="button" class="view-only">Fit</button>
     <button id="closePreview" type="button">✕</button>
   </div>
 </div>
@@ -160,6 +180,17 @@ function hexToRgb(hex){
   if(hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
   var n = parseInt(hex,16) || 0;
   return [(n>>16)&255,(n>>8)&255,n&255];
+}
+
+/* True if the image already contains any non-fully-opaque pixel — i.e. it came
+   in with real transparency (like an existing transparent PNG) rather than a
+   flat background color that still needs removing. */
+function hasAlpha(ctx,w,h){
+  var d = ctx.getImageData(0,0,w,h).data;
+  for(var i=3;i<d.length;i+=4){
+    if(d[i] < 250) return true;
+  }
+  return false;
 }
 
 /* Flood-fill background removal from the image borders.
@@ -267,7 +298,32 @@ self.onmessage = async function(e){
     ctx.drawImage(img,0,0);
     if(img.close) img.close();
 
-    if(d.removeBg && !d.bgDone) removeBackground(ctx,w,h,d.bgTol);
+    // Manual crop (from the preview crop tool) is applied first, in normalized
+    // fractions of the ORIGINAL source image, before any other processing.
+    if(d.cropRect){
+      var cx = Math.round(d.cropRect.x * w);
+      var cy = Math.round(d.cropRect.y * h);
+      var cwid = Math.max(1, Math.round(d.cropRect.w * w));
+      var chei = Math.max(1, Math.round(d.cropRect.h * h));
+      cx = Math.max(0, Math.min(w-1, cx));
+      cy = Math.max(0, Math.min(h-1, cy));
+      cwid = Math.min(cwid, w - cx);
+      chei = Math.min(chei, h - cy);
+      var cropped = new OffscreenCanvas(cwid, chei);
+      cropped.getContext('2d').drawImage(base, cx, cy, cwid, chei, 0, 0, cwid, chei);
+      base = cropped;
+      w = cwid; h = chei;
+      ctx = base.getContext('2d',{willReadFrequently:true});
+    }
+
+    if(d.removeBg && !d.bgDone){
+      if(hasAlpha(ctx,w,h)){
+        // source already has real transparency (e.g. an existing transparent PNG) —
+        // don't flood-fill over it, just keep the alpha as-is.
+      } else {
+        removeBackground(ctx,w,h,d.bgTol);
+      }
+    }
 
     var minX = 0, minY = 0, maxX = w-1, maxY = h-1;
     if(d.crop){
@@ -314,6 +370,17 @@ self.onmessage = async function(e){
       out = fin;
     }
 
+    if(d.flip && d.flip !== 'none'){
+      var flipC = new OffscreenCanvas(out.width, out.height);
+      var flipCtx = flipC.getContext('2d');
+      var sx = (d.flip === 'h' || d.flip === 'both') ? -1 : 1;
+      var sy = (d.flip === 'v' || d.flip === 'both') ? -1 : 1;
+      flipCtx.translate(sx < 0 ? out.width : 0, sy < 0 ? out.height : 0);
+      flipCtx.scale(sx, sy);
+      flipCtx.drawImage(out, 0, 0);
+      out = flipC;
+    }
+
     if(d.size > 0){
       var f = new OffscreenCanvas(d.size,d.size), fx = f.getContext('2d');
       var s = Math.min(d.size/out.width, d.size/out.height);
@@ -323,19 +390,22 @@ self.onmessage = async function(e){
       out = f;
     }
 
-    // Output format: PNG always preserves transparency from the effects above.
-    // "original" re-encodes as the source mime type when it supports alpha-less
-    // export cleanly (jpeg/webp); anything else (or an unrecognized type) falls
-    // back to PNG so transparency isn't silently destroyed.
+    // Output format: explicit png/jpeg/webp choice, or "original" to re-encode
+    // as the source mime type when it supports it cleanly (jpeg/webp); anything
+    // else (or an unrecognized source type) falls back to PNG.
     var mime = 'image/png';
-    if(d.keepOriginalFormat){
+    if(d.format === 'jpeg'){
+      mime = 'image/jpeg';
+    } else if(d.format === 'webp'){
+      mime = 'image/webp';
+    } else if(d.format === 'original'){
       var srcType = (d.origType || '').toLowerCase();
       if(srcType === 'image/jpeg' || srcType === 'image/jpg' || srcType === 'image/webp'){
         mime = srcType === 'image/jpg' ? 'image/jpeg' : srcType;
       }
     }
-    if(mime !== 'image/png'){
-      // Flatten transparency onto white before encoding to a format without alpha support parity issues (jpeg has none at all).
+    if(mime === 'image/jpeg'){
+      // JPEG has no alpha channel at all: flatten transparency onto white before encoding.
       var flat = new OffscreenCanvas(out.width, out.height);
       var flatCtx = flat.getContext('2d');
       flatCtx.fillStyle = '#ffffff';
@@ -344,8 +414,9 @@ self.onmessage = async function(e){
       out = flat;
     }
 
-    var blob = await out.convertToBlob({type:mime, quality: mime === 'image/png' ? undefined : 0.92});
-    self.postMessage({id:d.id, blob:blob, mime:mime, token:d.token});
+    var q = mime === 'image/png' ? undefined : Math.max(0.1, Math.min(1, (d.quality || 92) / 100));
+    var blob = await out.convertToBlob({type:mime, quality:q});
+    self.postMessage({id:d.id, blob:blob, mime:mime, quality:Math.round((q===undefined?1:q)*100), token:d.token});
   }catch(err){
     self.postMessage({id:d.id, token:d.token, error:(err && err.message) || String(err)});
   }
@@ -409,6 +480,7 @@ worker.onmessage = e => {
   }
 
   it.outMime = e.data.mime || 'image/png';
+  it.outQuality = e.data.quality || 92;
   const url = URL.createObjectURL(e.data.blob);
   const img = new Image();
   img.onload = () => {
@@ -419,7 +491,7 @@ worker.onmessage = e => {
     it.badge.textContent = it.usedAI ? 'AI' : 'manual';
     it.badge.className = 'badge ' + (it.usedAI ? 'badge-ai' : 'badge-man');
     URL.revokeObjectURL(url);
-    if(currentItem === it && preview.classList.contains('active')) drawPreview();
+    if(currentItem === it && preview.classList.contains('active')) draw();
     tick();
   };
   img.onerror = () => { URL.revokeObjectURL(url); tick(); };
@@ -486,7 +558,7 @@ function handleFiles(files){
     const origImg = new Image();
     origImg.src = origURL;
 
-    const it = {file, canvas, badge, wrap, origImg, origURL, usedAI:false, aiBlob:null, aiFailed:false, ready:false, outMime:'image/png'};
+    const it = {file, canvas, badge, wrap, origImg, origURL, usedAI:false, aiBlob:null, aiFailed:false, ready:false, outMime:'image/png', outQuality:92, cropRect:null};
     items.set(id, it);
 
     canvas.onclick = () => openPreview(it);
@@ -519,7 +591,7 @@ async function render(){
   processing = true;
   setBusy(true);
 
-  const keepOriginalFormat = document.getElementById('format').value === 'original';
+  const format = document.getElementById('format').value;
 
   const opts = {
     removeBg:  document.getElementById('removeBg').checked,
@@ -531,8 +603,10 @@ async function render(){
     shadow:    document.getElementById('shadow').checked,
     shadowBlur:+document.getElementById('shadowBlur').value,
     rainbow:   document.getElementById('rainbow').checked,
+    flip:      document.getElementById('flip').value,
     size:     +document.getElementById('size').value,
-    keepOriginalFormat: keepOriginalFormat
+    format:    format,
+    quality:  +document.getElementById('quality').value
   };
   const useAI = opts.removeBg && !!apiKey.trim();
 
@@ -556,7 +630,7 @@ async function render(){
       } else { it.usedAI = false; }
     } else { it.usedAI = false; }
 
-    worker.postMessage(Object.assign({id, token:myToken, blob, bgDone, origType: it.file.type}, opts));
+    worker.postMessage(Object.assign({id, token:myToken, blob, bgDone, origType: it.file.type, cropRect: it.cropRect}, opts));
   }
 }
 
@@ -564,6 +638,20 @@ let rt;
 document.querySelectorAll('#controls .opt').forEach(el => {
   el.oninput = () => { clearTimeout(rt); rt = setTimeout(render, 300); };
 });
+
+const qualityRow = document.getElementById('quality');
+const qualityLabel = document.getElementById('qualityLabel');
+function updateQualityVisibility(){
+  const fmt = document.getElementById('format').value;
+  const show = fmt === 'jpeg' || fmt === 'webp' || fmt === 'original';
+  qualityRow.style.display = show ? '' : 'none';
+  qualityLabel.style.display = show ? '' : 'none';
+}
+qualityRow.addEventListener('input', () => {
+  qualityLabel.innerHTML = 'Quality <span style="font-weight:400;color:var(--muted);font-size:.8rem">(' + qualityRow.value + '%)</span>';
+});
+document.getElementById('format').addEventListener('change', updateQualityVisibility);
+updateQualityVisibility();
 
 /* ---- Download ---- */
 function extFor(mime){
@@ -587,7 +675,7 @@ downloadBtn.onclick = async () => {
     while(used.has(name)) name = stem + '-' + (++n) + ext;
     used.add(name);
 
-    const blob = await new Promise(r => it.canvas.toBlob(r, it.outMime, it.outMime === 'image/png' ? undefined : 0.92));
+    const blob = await new Promise(r => it.canvas.toBlob(r, it.outMime, it.outMime === 'image/png' ? undefined : (it.outQuality || 92) / 100));
     if(!blob) continue;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -611,70 +699,301 @@ const pCanvas = document.getElementById('pCanvas');
 const pCtx = pCanvas.getContext('2d');
 const zoomLabel = document.getElementById('zoomLabel');
 const beforeBtn = document.getElementById('beforeAfter');
-let currentItem = null, zoom = 1, offsetX = 0, offsetY = 0, dragging = false, lastX = 0, lastY = 0, showBefore = false;
+const cropToggleBtn = document.getElementById('cropToggle');
+const cropApplyBtn = document.getElementById('cropApply');
+const cropCancelBtn = document.getElementById('cropCancel');
+const cropClearBtn = document.getElementById('cropClear');
+
+let currentItem = null;
+let zoom = 1, offsetX = 0, offsetY = 0;      // view-mode pan/zoom (CSS px offsets, canvas-space)
+let panning = false, lastX = 0, lastY = 0;
+let showBefore = false;
+let cropMode = false;
+let cropRect = null;         // {x,y,w,h} in ORIGINAL-IMAGE pixel space (not canvas space)
+let cropDragMode = null;     // 'move' | 'nw' | 'ne' | 'sw' | 'se' | 'new' | null
+let cropDragStart = null;    // {mx,my, rect:{...}} in image-space at drag start
+const HANDLE_PX = 10;        // handle hit-radius in canvas pixels
 
 function previewSource(){
   if(!currentItem) return null;
   if(showBefore) return currentItem.origImg.complete ? currentItem.origImg : currentItem.canvas;
   return currentItem.canvas;
 }
+function cropSource(){
+  // Cropping always happens against the original image, regardless of "before/after" toggle.
+  if(!currentItem) return null;
+  return currentItem.origImg.complete ? currentItem.origImg : currentItem.canvas;
+}
 function srcSize(src){
   return [src.naturalWidth || src.width, src.naturalHeight || src.height];
 }
+
 function openPreview(it){
   currentItem = it;
   showBefore = false;
+  cropMode = false;
   beforeBtn.textContent = 'Show original';
   pCanvas.width  = Math.min(Math.round(window.innerWidth  * 0.9), 1400);
   pCanvas.height = Math.min(Math.round(window.innerHeight * 0.86), 900);
-  fitZoom();
   preview.classList.add('active');
+  fitZoom();
+  updateToolbarMode();
 }
+function closePreview(){
+  cropMode = false;
+  cropDragMode = null;
+  preview.classList.remove('active');
+  currentItem = null;
+  panning = false;
+}
+
 function fitZoom(){
-  const src = previewSource();
+  const src = cropMode ? cropSource() : previewSource();
   offsetX = 0; offsetY = 0;
-  if(!src){ zoom = 1; return; }
+  if(!src){ zoom = 1; draw(); return; }
   const [sw,sh] = srcSize(src);
   zoom = sw && sh ? Math.min(pCanvas.width/sw, pCanvas.height/sh, 4) * 0.92 : 1;
-  drawPreview();
+  draw();
 }
-function drawPreview(){
+
+// Convert a point from the ORIGINAL image's pixel space to current canvas pixel space.
+function imgToCanvas(ix, iy, sw, sh){
+  return [
+    pCanvas.width/2  + offsetX + (ix - sw/2) * zoom,
+    pCanvas.height/2 + offsetY + (iy - sh/2) * zoom
+  ];
+}
+// Convert a point from canvas pixel space back to original-image pixel space.
+function canvasToImg(cx, cy, sw, sh){
+  return [
+    (cx - pCanvas.width/2  - offsetX) / zoom + sw/2,
+    (cy - pCanvas.height/2 - offsetY) / zoom + sh/2
+  ];
+}
+// Convert a mouse/DOM event to canvas pixel coordinates, accounting for the
+// canvas's CSS scaling (max-width/max-height shrink it visually).
+function eventToCanvasPx(e){
+  const r = pCanvas.getBoundingClientRect();
+  const scaleX = pCanvas.width  / r.width;
+  const scaleY = pCanvas.height / r.height;
+  return [(e.clientX - r.left) * scaleX, (e.clientY - r.top) * scaleY];
+}
+
+function draw(){
+  if(cropMode) drawCropView(); else drawViewMode();
+}
+
+function drawViewMode(){
   const src = previewSource();
   pCtx.setTransform(1,0,0,1,0,0);
   pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
   if(!src) return;
   const [sw,sh] = srcSize(src);
   if(!sw || !sh) return;
-  pCtx.translate(pCanvas.width/2 + offsetX, pCanvas.height/2 + offsetY);
-  pCtx.scale(zoom,zoom);
-  pCtx.drawImage(src, -sw/2, -sh/2, sw, sh);
-  pCtx.setTransform(1,0,0,1,0,0);
+  pCtx.drawImage(src, ...imgToCanvas(0,0,sw,sh), sw*zoom, sh*zoom);
   zoomLabel.textContent = Math.round(zoom*100) + '%';
 }
-function closePreview(){ preview.classList.remove('active'); currentItem = null; dragging = false; }
 
-pCanvas.ondblclick = () => { zoom = Math.min(zoom*1.5, 30); drawPreview(); };
-pCanvas.onwheel = e => { e.preventDefault(); zoom = Math.max(0.05, Math.min(30, zoom * (e.deltaY < 0 ? 1.1 : 0.9))); drawPreview(); };
-pCanvas.onmousedown = e => { e.preventDefault(); dragging = true; lastX = e.clientX; lastY = e.clientY; pCanvas.style.cursor = 'grabbing'; };
-window.addEventListener('mouseup', () => { dragging = false; pCanvas.style.cursor = 'grab'; });
-window.addEventListener('mousemove', e => {
-  if(!dragging) return;
-  offsetX += e.clientX - lastX; offsetY += e.clientY - lastY;
-  lastX = e.clientX; lastY = e.clientY;
-  drawPreview();
+function drawCropView(){
+  const src = cropSource();
+  pCtx.setTransform(1,0,0,1,0,0);
+  pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
+  if(!src) return;
+  const [sw,sh] = srcSize(src);
+  if(!sw || !sh) return;
+  const [ox,oy] = imgToCanvas(0,0,sw,sh);
+  pCtx.drawImage(src, ox, oy, sw*zoom, sh*zoom);
+
+  // Dim everything, then punch a clear window over the crop rect.
+  const r = cropRect || {x:0,y:0,w:sw,h:sh};
+  const [rx0,ry0] = imgToCanvas(r.x, r.y, sw, sh);
+  const [rx1,ry1] = imgToCanvas(r.x+r.w, r.y+r.h, sw, sh);
+
+  pCtx.fillStyle = 'rgba(0,0,0,0.55)';
+  pCtx.fillRect(0,0,pCanvas.width, ry0);                               // top
+  pCtx.fillRect(0, ry1, pCanvas.width, pCanvas.height-ry1);            // bottom
+  pCtx.fillRect(0, ry0, rx0, ry1-ry0);                                 // left
+  pCtx.fillRect(rx1, ry0, pCanvas.width-rx1, ry1-ry0);                 // right
+
+  pCtx.strokeStyle = '#fff';
+  pCtx.lineWidth = 2;
+  pCtx.setLineDash([6,4]);
+  pCtx.strokeRect(rx0, ry0, rx1-rx0, ry1-ry0);
+  pCtx.setLineDash([]);
+
+  const hs = 9;
+  pCtx.fillStyle = '#fff';
+  pCtx.strokeStyle = '#6366f1';
+  pCtx.lineWidth = 2;
+  [[rx0,ry0],[rx1,ry0],[rx0,ry1],[rx1,ry1]].forEach(([hx,hy]) => {
+    pCtx.fillRect(hx-hs/2, hy-hs/2, hs, hs);
+    pCtx.strokeRect(hx-hs/2, hy-hs/2, hs, hs);
+  });
+
+  zoomLabel.textContent = Math.round(zoom*100) + '%';
+}
+
+function handleAtPoint(cx, cy, sw, sh){
+  if(!cropRect) return null;
+  const [rx0,ry0] = imgToCanvas(cropRect.x, cropRect.y, sw, sh);
+  const [rx1,ry1] = imgToCanvas(cropRect.x+cropRect.w, cropRect.y+cropRect.h, sw, sh);
+  const near = (px,py) => Math.abs(cx-px) <= HANDLE_PX && Math.abs(cy-py) <= HANDLE_PX;
+  if(near(rx0,ry0)) return 'nw';
+  if(near(rx1,ry0)) return 'ne';
+  if(near(rx0,ry1)) return 'sw';
+  if(near(rx1,ry1)) return 'se';
+  if(cx > rx0 && cx < rx1 && cy > ry0 && cy < ry1) return 'move';
+  return null;
+}
+
+function clampRect(r, sw, sh){
+  let {x,y,w,h} = r;
+  if(w < 0){ x += w; w = -w; }
+  if(h < 0){ y += h; h = -h; }
+  const minSize = Math.min(sw,sh) * 0.03 || 4;
+  w = Math.max(minSize, w);
+  h = Math.max(minSize, h);
+  x = Math.max(0, Math.min(sw - w, x));
+  y = Math.max(0, Math.min(sh - h, y));
+  w = Math.min(w, sw - x);
+  h = Math.min(h, sh - y);
+  return {x,y,w,h};
+}
+
+/* ---- Mode switching ---- */
+function updateToolbarMode(){
+  document.querySelectorAll('.view-only').forEach(el => el.style.display = cropMode ? 'none' : '');
+  document.querySelectorAll('.crop-only').forEach(el => el.style.display = cropMode ? '' : 'none');
+  cropToggleBtn.style.display = cropMode ? 'none' : '';
+  cropClearBtn.style.display  = (!cropMode && currentItem && currentItem.cropRect) ? '' : 'none';
+  beforeBtn.style.display = cropMode ? 'none' : '';
+  pCanvas.classList.toggle('cropping', cropMode);
+}
+
+cropToggleBtn.onclick = () => {
+  if(!currentItem) return;
+  cropMode = true;
+  showBefore = false;
+  const [sw,sh] = srcSize(cropSource());
+  cropRect = currentItem.cropRect
+    ? { x: currentItem.cropRect.x*sw, y: currentItem.cropRect.y*sh, w: currentItem.cropRect.w*sw, h: currentItem.cropRect.h*sh }
+    : { x: sw*0.15, y: sh*0.15, w: sw*0.7, h: sh*0.7 };
+  fitZoom();
+  updateToolbarMode();
+};
+function exitCropMode(){
+  cropMode = false;
+  cropDragMode = null;
+  updateToolbarMode();
+  fitZoom();
+}
+cropCancelBtn.onclick = exitCropMode;
+cropApplyBtn.onclick = () => {
+  if(!currentItem || !cropRect) return;
+  const [sw,sh] = srcSize(cropSource());
+  currentItem.cropRect = { x:cropRect.x/sw, y:cropRect.y/sh, w:cropRect.w/sw, h:cropRect.h/sh };
+  exitCropMode();
+  render();
+};
+cropClearBtn.onclick = () => {
+  if(!currentItem) return;
+  currentItem.cropRect = null;
+  updateToolbarMode();
+  render();
+};
+
+/* ---- Mouse interaction (single set of handlers, mode-aware) ---- */
+pCanvas.addEventListener('mousedown', e => {
+  e.preventDefault();
+  const [cx,cy] = eventToCanvasPx(e);
+  if(cropMode){
+    const src = cropSource();
+    const [sw,sh] = srcSize(src);
+    const handle = handleAtPoint(cx, cy, sw, sh);
+    const [ix,iy] = canvasToImg(cx, cy, sw, sh);
+    if(handle){
+      cropDragMode = handle;
+      cropDragStart = { ix, iy, rect: Object.assign({}, cropRect) };
+    } else {
+      // start a brand new rectangle from scratch
+      cropDragMode = 'new';
+      cropDragStart = { ix, iy, rect: {x:ix, y:iy, w:0, h:0} };
+      cropRect = clampRect(cropDragStart.rect, sw, sh);
+    }
+  } else {
+    panning = true; lastX = e.clientX; lastY = e.clientY;
+    pCanvas.style.cursor = 'grabbing';
+  }
 });
-document.getElementById('zoomIn').onclick  = () => { zoom = Math.min(30, zoom*1.2); drawPreview(); };
-document.getElementById('zoomOut').onclick = () => { zoom = Math.max(0.05, zoom/1.2); drawPreview(); };
+
+window.addEventListener('mousemove', e => {
+  if(cropMode){
+    if(!cropDragMode || !currentItem) return;
+    const src = cropSource();
+    const [sw,sh] = srcSize(src);
+    const [cx,cy] = eventToCanvasPx(e);
+    const [ix,iy] = canvasToImg(cx, cy, sw, sh);
+    const dx = ix - cropDragStart.ix, dy = iy - cropDragStart.iy;
+    const o = cropDragStart.rect;
+    let next;
+    if(cropDragMode === 'move'){
+      next = { x:o.x+dx, y:o.y+dy, w:o.w, h:o.h };
+    } else if(cropDragMode === 'new'){
+      next = { x:o.x, y:o.y, w: ix-o.x, h: iy-o.y };
+    } else {
+      next = Object.assign({}, o);
+      if(cropDragMode.includes('n')){ next.y = o.y+dy; next.h = o.h-dy; }
+      if(cropDragMode.includes('s')){ next.h = o.h+dy; }
+      if(cropDragMode.includes('w')){ next.x = o.x+dx; next.w = o.w-dx; }
+      if(cropDragMode.includes('e')){ next.w = o.w+dx; }
+    }
+    cropRect = clampRect(next, sw, sh);
+    draw();
+  } else {
+    if(!panning) return;
+    offsetX += e.clientX - lastX; offsetY += e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    draw();
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  panning = false;
+  cropDragMode = null;
+  if(!cropMode) pCanvas.style.cursor = 'grab';
+});
+
+pCanvas.addEventListener('mousemove', e => {
+  if(!cropMode || cropDragMode || !currentItem) return;
+  const [cx,cy] = eventToCanvasPx(e);
+  const [sw,sh] = srcSize(cropSource());
+  const handle = handleAtPoint(cx, cy, sw, sh);
+  const cursors = {nw:'nwse-resize', se:'nwse-resize', ne:'nesw-resize', sw:'nesw-resize', move:'move'};
+  pCanvas.style.cursor = cursors[handle] || 'crosshair';
+});
+
+pCanvas.ondblclick = () => { if(!cropMode){ zoom = Math.min(zoom*1.5, 30); draw(); } };
+pCanvas.onwheel = e => {
+  if(cropMode) return;
+  e.preventDefault();
+  zoom = Math.max(0.05, Math.min(30, zoom * (e.deltaY < 0 ? 1.1 : 0.9)));
+  draw();
+};
+document.getElementById('zoomIn').onclick  = () => { zoom = Math.min(30, zoom*1.2); draw(); };
+document.getElementById('zoomOut').onclick = () => { zoom = Math.max(0.05, zoom/1.2); draw(); };
 document.getElementById('resetZoom').onclick = fitZoom;
 document.getElementById('closePreview').onclick = closePreview;
 beforeBtn.onclick = () => {
-  if(!currentItem) return;
+  if(!currentItem || cropMode) return;
   showBefore = !showBefore;
   beforeBtn.textContent = showBefore ? 'Show result' : 'Show original';
   fitZoom();
 };
 preview.addEventListener('click', e => { if(e.target === preview) closePreview(); });
-window.addEventListener('keydown', e => { if(e.key === 'Escape') closePreview(); });
+window.addEventListener('keydown', e => {
+  if(e.key !== 'Escape') return;
+  if(cropMode) exitCropMode(); else closePreview();
+});
 window.addEventListener('beforeunload', () => {
   items.forEach(it => URL.revokeObjectURL(it.origURL));
   URL.revokeObjectURL(workerURL);
